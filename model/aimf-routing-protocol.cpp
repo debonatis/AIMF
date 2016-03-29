@@ -962,6 +962,7 @@ namespace ns3 {
             m_state.InsertAssociation((Association) {
                 group, source
             });
+            RoutingTableComputation();
         }
 
         void
