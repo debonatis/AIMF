@@ -91,7 +91,7 @@ namespace ns3 {
             //
         public:
 
-            //            /// Willingness for forwarding packets on behalf of other nodes.
+            // Willingness for forwarding packets on behalf of other nodes.
             uint8_t m_willingness;
 
             std::set<uint32_t> GetInterfaceExclusions() const {
@@ -99,52 +99,44 @@ namespace ns3 {
             }
             void SetInterfaceExclusions(std::set<uint32_t> exceptions);
 
-            /// Inject Association to be sent in HNA message
+          
             void AddHostNetworkAssociation(Ipv4Address group, Ipv4Address source);
-            /// Removes Association sent in HNA message
+            
             void RemoveHostNetworkAssociation(Ipv4Address group, Ipv4Address source);
 
-            /// Inject Associations from an Ipv4StaticRouting instance
+            
             void SetRoutingTableAssociation(Ptr<Ipv4StaticRouting> routingTable);
 
-            /**
-             * \brief Returns the internal HNA table
-             * \returns the internal HNA table
-             */
+            
             Ptr<const Ipv4StaticRouting> GetRoutingTableAssociation() const;
 
         protected:
             virtual void DoInitialize(void);
         private:
             std::map<Ipv4Address, Ipv4MulticastRoutingTableEntry> m_table; ///< Data structure for the routing table.
-            //
+            
 
-            //
             EventGarbageCollector m_events;
-            //
-            //            /// Packets sequence number counter.
+          
+            // Packets sequence number counter.
             uint16_t m_packetSequenceNumber;
-            //            /// Messages sequence number counter.
+            // Messages sequence number counter.
             uint16_t m_messageSequenceNumber;
-            //            /// Advertised Neighbor Set sequence number.
+            // Advertised Neighbor Set sequence number.
             uint16_t m_ansn;
 
-            //
-            //            /// HELLO messages' emission interval.
+            // HELLO messages' emission interval.
             Time m_helloInterval;
 
 
-            //
-            //            /// Internal state with all needed data structs.
+            // Internal state with all needed data structs.
             AimfState m_state;
             //
             Ptr<Ipv4> m_ipv4;
             //
-            void Clear(); //ok
+            void Clear(); 
             //
-            //            uint32_t GetSize() const {
-            //                return m_table.size();
-            //            }
+            
             void RemoveEntry(const Ipv4Address &dest); //ok
             void AddEntry(const Ipv4Address &dgroup,
                     const Ipv4Address &source,
@@ -197,15 +189,11 @@ namespace ns3 {
              */
             NetworkRoutes m_networkRoutes;
 
-            /**
-             * \brief the forwarding table for multicast.
-             */
-
+           
 
             bool FindSendEntry(const Ipv4MulticastRoutingTableEntry &entry,
                     Ipv4MulticastRoutingTableEntry & outEntry) const;
-            //
-            //            // From Ipv4RoutingProtocol
+            // From Ipv4RoutingProtocol
             virtual Ptr<Ipv4Route> RouteOutput(Ptr<Packet> p,
                     const Ipv4Header &header,
                     Ptr<NetDevice> oif,
@@ -239,33 +227,17 @@ namespace ns3 {
 
             void RoutingTableComputation(); //ok
             Ipv4Address GetMainAddress(Ipv4Address iface_addr) const;
-            //            bool UsesNonAimfOutgoingInterface(const Ipv4RoutingTableEntry &route);
-            //
-            //            // Timer handlers
+            
             Timer m_helloTimer;
             void HelloTimerExpire();
-            //
-
-            //
-            //            void DupTupleTimerExpire(Ipv4Address address, uint16_t sequenceNumber);
+            
             bool m_linkTupleTimerFirstTime;
-            //            void LinkTupleTimerExpire(Ipv4Address neighborIfaceAddr);
-            //            void Nb2hopTupleTimerExpire(Ipv4Address neighborMainAddr, Ipv4Address twoHopNeighborAddr);
-            //            void MprSelTupleTimerExpire(Ipv4Address mainAddr);
-            //            void TopologyTupleTimerExpire(Ipv4Address destAddr, Ipv4Address lastAddr);
-            //            void IfaceAssocTupleTimerExpire(Ipv4Address ifaceAddr);
-            //            void AssociationTupleTimerExpire(Ipv4Address gatewayAddr, Ipv4Address networkAddr, Ipv4Mask netmask);
-            //
-            //            void IncrementAnsn();
-            //
-            //            /// A list of pending messages which are buffered awaiting for being sent.
+          
+            
+            // A list of pending messages which are buffered awaiting for being sent.
             aimf::MessageList m_queuedMessages;
             Timer m_queuedMessagesTimer; // timer for throttling outgoing messages
-            //
-            //            void ForwardDefault(aimf::MessageHeader aimfMessage,
-            //                    DuplicateTuple *duplicated,
-            //                    const Ipv4Address &localIface,
-            //                    const Ipv4Address &senderAddress);
+            
             void QueueMessage(const aimf::MessageHeader &message, Time delay); //ok
             void SendQueuedMessages(); //ok
             void SendHello(); //ok
