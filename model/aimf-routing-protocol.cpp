@@ -367,8 +367,8 @@ namespace ns3 {
             NS_LOG_FUNCTION(this << origin << " " << group << " " << interface);
             Ptr<Ipv4MulticastRoute> mrtentry = 0;
 
-            if(!m_state.WillingnessOk(m_willingness))return mrtentry;
-             NS_LOG_DEBUG("Node " << m_mainAddress << ": willingness = " << int(m_willingness) << ". ");
+            if (!m_state.WillingnessOk(m_willingness))return mrtentry;
+            NS_LOG_DEBUG("Node " << m_mainAddress << ": willingness = " << int(m_willingness) << ". ");
 
             for (std::map<Ipv4Address, Ipv4MulticastRoutingTableEntry>::const_iterator i = m_table.begin();
                     i != m_table.end();
@@ -725,18 +725,15 @@ namespace ns3 {
                 AssociationTuple *tuple = m_state.FindAssociationTuple(msg.GetOriginatorAddress(), it->group, it->source);
                 if (tuple != NULL) {
                     tuple->expirationTime = now + msg.GetVTime();
-                }// 2.2 otherwise, a new tuple MUST be recorded with:
-                    //          A_gateway_addr =  originator address
-                    //          A_network_addr =  network address
-                    //          A_netmask      =  netmask
-                    //          A_time         =  current time + validity time
-                else {
+                } else {
                     AssociationTuple assocTuple = {
                         msg.GetOriginatorAddress(),
                         it->group,
                         it->source,
                         now + msg.GetVTime()
                     };
+                    NeighborTuple nb_tuple = {msg.GetOriginatorAddress()
+                        , nb_tuple.willingness = msg.GetHello().willingness};
                     AddAssociationTuple(assocTuple);
 
                     //Schedule Association Tuple deletion
@@ -759,6 +756,13 @@ namespace ns3 {
 
         void RoutingProtocol::SetInterfaceExclusions(std::set<uint32_t> exceptions) {
             m_interfaceExclusions = exceptions;
+        }
+
+        void
+        RoutingProtocol::AddNeigbour(NeighborTuple tuple) {
+
+            m_state.InsertNeighborTuple(tuple);
+            
         }
 
         void
