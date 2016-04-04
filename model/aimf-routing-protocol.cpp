@@ -505,7 +505,7 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
         void
         RoutingProtocol::PrintRoutingTable(Ptr<OutputStreamWrapper> stream) const {
             std::ostream* os = stream->GetStream();
-            *os << "Destination\t\tNextHop\t\tInterface\tDistance\n";
+            *os << "Source\t\tGroup\t\tInterface\tDistance\n";
 
             for (std::map<Ipv4Address, Ipv4MulticastRoutingTableEntry>::const_iterator iter = m_table.begin();
                     iter != m_table.end(); iter++) {
@@ -786,7 +786,6 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
             msg.SetVTime(AIMF_NEIGHB_HOLD_TIME);
             msg.SetOriginatorAddress(m_mainAddress);
             msg.SetTimeToLive(255);
-            msg.SetHopCount(0);
             msg.SetMessageSequenceNumber(GetMessageSequenceNumber());
             MessageHeader::Hello &hello = msg.GetHello();
 

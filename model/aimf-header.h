@@ -33,24 +33,13 @@ namespace ns3 {
         //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         //       |                      Originator Address                       |
         //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        //       |  Time To Live |   Hop Count   |    Message Sequence Number    |
-        //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        //       |  Time To Live |    Message Sequence Number    |               |
+        //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         //       |                                                               |
         //       :                            MESSAGE                            :
         //       |                                                               |
-        //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        //       |  Message Type |     Vtime     |         Message Size          |
-        //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        //       |                      Originator Address                       |
-        //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        //       |  Time To Live |   Hop Count   |    Message Sequence Number    |
-        //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        //       |                                                               |
-        //       :                            MESSAGE                            :
-        //       |                                                               |
-        //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        //       :                                                               :
-        //                (etc.)
+      
+      
 
         class PacketHeader : public Header {
         public:
@@ -94,8 +83,8 @@ namespace ns3 {
         //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
         //       |                      Originator Address                       |
         //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-        //       |  Time To Live |   Hop Count   |    Message Sequence Number    |
-        //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+        //       |  Time To Live |    Message Sequence Number    |
+        //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
         class MessageHeader : public Header {
         public:
@@ -139,14 +128,6 @@ namespace ns3 {
                 return m_timeToLive;
             }
 
-            void SetHopCount(uint8_t hopCount) {
-                m_hopCount = hopCount;
-            }
-
-            uint8_t GetHopCount() const {
-                return m_hopCount;
-            }
-
             void SetMessageSequenceNumber(uint16_t messageSequenceNumber) {
                 m_messageSequenceNumber = messageSequenceNumber;
             }
@@ -155,21 +136,12 @@ namespace ns3 {
                 return m_messageSequenceNumber;
             }
 
-            //   void SetMessageSize (uint16_t messageSize)
-            //   {
-            //     m_messageSize = messageSize;
-            //   }
-            //   uint16_t GetMessageSize () const
-            //   {
-            //     return m_messageSize;
-            //   }
-
+          
         private:
             MessageType m_messageType;
             uint8_t m_vTime;
             Ipv4Address m_originatorAddress;
-            uint8_t m_timeToLive;
-            uint8_t m_hopCount;
+            uint8_t m_timeToLive;           
             uint16_t m_messageSequenceNumber;
             uint16_t m_messageSize;
 
@@ -185,13 +157,13 @@ namespace ns3 {
 
             // 6.1.  HELLO Message Format
             //
-            //        0                   1                   2                   3
-            //        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+            //        0                   1                   2                   3                   
+            //        0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 
             //
+            //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+            //       |     Htime     |  Willingness  | 
             //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-            //       |     Htime     |  Willingness  |           Reserved            |
-            //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-            //       |                              HMA                              |
+            //       |                              HMA                              |                                                           |
             //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
             //       |                              HMA                              |
             //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -258,7 +230,7 @@ namespace ns3 {
             //       |                              ...                              |
             //       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
-            // Note: HNA stands for Host Network Association
+            // Note: HMA stands for Host multicast Association
 
 
 

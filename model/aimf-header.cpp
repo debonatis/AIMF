@@ -6,7 +6,7 @@
 #include "aimf-header.h"
 
 #define IPV4_ADDRESS_SIZE 4
-#define AIMF_MSG_HEADER_SIZE 12
+#define AIMF_MSG_HEADER_SIZE 11
 #define AIMF_PKT_HEADER_SIZE 4
 
 namespace ns3 {
@@ -174,7 +174,6 @@ namespace ns3 {
             i.WriteHtonU16(this->GetSerializedSize());
             i.WriteHtonU32(m_originatorAddress.Get());
             i.WriteU8(m_timeToLive);
-            i.WriteU8(m_hopCount);
             i.WriteHtonU16(m_messageSequenceNumber);
             m_message.hello.Serialize(i);
 
@@ -190,8 +189,7 @@ namespace ns3 {
             m_vTime = i.ReadU8();
             m_messageSize = i.ReadNtohU16();
             m_originatorAddress = Ipv4Address(i.ReadNtohU32());
-            m_timeToLive = i.ReadU8();
-            m_hopCount = i.ReadU8();
+            m_timeToLive = i.ReadU8();            
             m_messageSequenceNumber = i.ReadNtohU16();
             size = AIMF_MSG_HEADER_SIZE;
 
@@ -204,7 +202,7 @@ namespace ns3 {
 
         uint32_t
         MessageHeader::Hello::GetSerializedSize(void) const {
-            uint32_t size = 4;
+            uint32_t size = 2;
             size += 2 * this->associations.size() * IPV4_ADDRESS_SIZE;
             return size;
         }
@@ -221,7 +219,7 @@ namespace ns3 {
 
             i.WriteU8(this->hTime);
             i.WriteU8(this->willingness);
-            i.WriteU16(0); // Reserved
+            
 
             for (size_t n = 0; n < this->associations.size(); ++n) {
                 i.WriteHtonU32(this->associations[n].group.Get());
@@ -237,11 +235,11 @@ namespace ns3 {
             
             this->hTime = i.ReadU8();
             this->willingness = i.ReadU8();
-            i.ReadNtohU16(); // Reserved
+            
+        
 
-
-            NS_ASSERT((messageSize-4) % (IPV4_ADDRESS_SIZE * 2) == 0);
-            int numAddresses = (messageSize-4) / IPV4_ADDRESS_SIZE / 2;
+            NS_ASSERT((messageSize-2) % (IPV4_ADDRESS_SIZE * 2) == 0);
+            int numAddresses = (messageSize-2) / IPV4_ADDRESS_SIZE / 2;
             this->associations.clear();
             for (int n = 0; n < numAddresses; ++n) {
                 Ipv4Address group(i.ReadNtohU32());
