@@ -291,8 +291,8 @@ main(int argc, char *argv[]) {
 
     Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 1);
     Simulator::Schedule(Seconds(500.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 5);
-    Simulator::Schedule(Seconds(3.0), &aimf::RoutingProtocol::AddHostNetworkAssociation, aimf_Gw, multicastGroup, multicastSource);
-    Simulator::Schedule(Seconds(800.0), &aimf::RoutingProtocol::AddHostNetworkAssociation, aimf_Gw2, multicastGroup2, multicastSource2);
+    Simulator::Schedule(Seconds(3.0), &aimf::RoutingProtocol::AddHostMulticastAssociation, aimf_Gw, multicastGroup, multicastSource);
+    Simulator::Schedule(Seconds(800.0), &aimf::RoutingProtocol::AddHostMulticastAssociation, aimf_Gw2, multicastGroup2, multicastSource2);
 
     Simulator::Stop(Seconds(1001.0));
     Simulator::Run();

@@ -16,7 +16,7 @@ namespace ns3 {
     namespace aimf {
 
 
-        /// Scaling factor used in RFC 3626.
+        
 #define AIMF_C 0.0625
 
         ///

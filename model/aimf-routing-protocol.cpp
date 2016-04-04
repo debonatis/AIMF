@@ -860,7 +860,7 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
         }
 
         void
-        RoutingProtocol::AddHostNetworkAssociation(Ipv4Address group, Ipv4Address source) {
+        RoutingProtocol::AddHostMulticastAssociation(Ipv4Address group, Ipv4Address source) {
             // Check if the (group, source) tuple already exist
             // in the list of local HMA associations
             const Associations &localHnaAssociations = m_state.GetAssociations();

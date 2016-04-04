@@ -101,7 +101,7 @@ namespace ns3 {
             void SetInterfaceExclusions(std::set<uint32_t> exceptions);
 
 
-            void AddHostNetworkAssociation(Ipv4Address group, Ipv4Address source);
+            void AddHostMulticastAssociation(Ipv4Address group, Ipv4Address source);
 
             void RemoveHostNetworkAssociation(Ipv4Address group, Ipv4Address source);
 
