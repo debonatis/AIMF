@@ -149,8 +149,8 @@ main(int argc, char *argv[]) {
         aimf.ExcludeInterface(c.Get(4), 2);
         aimf.ExcludeInterface(c.Get(3), 0);
         aimf.ExcludeInterface(c.Get(4), 0);
-        list.Add(staticRouting, 0);
-        list.Add(aimf, 10);
+        list.Add(staticRouting, 10);
+        list.Add(aimf, 12);
         list.Add(olsr, 11);
         list2.Add(staticRouting2, 0);
         list2.Add(olsr2, 9);
@@ -180,8 +180,8 @@ main(int argc, char *argv[]) {
     ipv4Addr.Assign(nd0);
     ipv4Addr.SetBase("10.1.2.0", "255.255.255.0");
     ipv4Addr.Assign(nd1);
-    
-    
+
+
     NS_LOG_INFO("Configure multicasting.");
 
 
@@ -189,7 +189,15 @@ main(int argc, char *argv[]) {
     Ptr<Ipv4RoutingProtocol> rp_Gw = (stack->GetRoutingProtocol());
     Ptr<Ipv4ListRouting> lrp_Gw = DynamicCast<Ipv4ListRouting> (rp_Gw);
 
+
+
+    Ptr<Ipv4> stack2 = c.Get(4)->GetObject<Ipv4> ();
+    Ptr<Ipv4RoutingProtocol> rp_Gw2 = (stack->GetRoutingProtocol());
+    Ptr<Ipv4ListRouting> lrp_Gw2 = DynamicCast<Ipv4ListRouting> (rp_Gw2);
+
+
     Ptr<aimf::RoutingProtocol> aimf_Gw;
+    Ptr<aimf::RoutingProtocol> aimf_Gw2;
 
 
     for (uint32_t i = 0; i < lrp_Gw->GetNRoutingProtocols(); i++) {
@@ -200,15 +208,24 @@ main(int argc, char *argv[]) {
         }
 
     }
+
+    for (uint32_t i = 0; i < lrp_Gw2->GetNRoutingProtocols(); i++) {
+        int16_t priority;
+        Ptr<Ipv4RoutingProtocol> temp = lrp_Gw2->GetRoutingProtocol(i, priority);
+        if (DynamicCast<aimf::RoutingProtocol> (temp)) {
+            aimf_Gw2 = DynamicCast<aimf::RoutingProtocol>(temp);
+        }
+
+    }
     Ipv4StaticRoutingHelper multicast;
 
     Ipv4Address multicastSource("10.1.1.1");
     Ipv4Address multicastGroup("225.1.2.4");
     Ipv4Address multicastSource2("10.1.1.2");
     Ipv4Address multicastGroup2("225.1.2.5");
-    aimf_Gw->AddHostNetworkAssociation(multicastGroup, multicastSource);
-    aimf_Gw->AddHostNetworkAssociation(multicastGroup2, multicastSource2);
-    
+    //    aimf_Gw->AddHostNetworkAssociation(multicastGroup, multicastSource);
+    //    aimf_Gw->AddHostNetworkAssociation(multicastGroup2, multicastSource2);
+
 
 
     Ptr<Node> sender = c.Get(0);
@@ -271,12 +288,13 @@ main(int argc, char *argv[]) {
     // Now, do the actual simulation.
     //
     NS_LOG_INFO("Run Simulation.");
-   
-    Simulator::Schedule(Seconds(1.0),&aimf::RoutingProtocol::ChangeWillingness,aimf_Gw,1);
-    Simulator::Schedule(Seconds(500.0),&aimf::RoutingProtocol::ChangeWillingness,aimf_Gw,5);
-    //Simulator::Schedule(Seconds(750.0),&aimf::RoutingProtocol::ChangeWillingness,aimf_Gw,3);
 
-    Simulator::Stop(Seconds(600.0));
+    Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 1);
+    Simulator::Schedule(Seconds(500.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 5);
+    Simulator::Schedule(Seconds(3.0), &aimf::RoutingProtocol::AddHostNetworkAssociation, aimf_Gw, multicastGroup, multicastSource);
+    Simulator::Schedule(Seconds(800.0), &aimf::RoutingProtocol::AddHostNetworkAssociation, aimf_Gw2, multicastGroup2, multicastSource2);
+
+    Simulator::Stop(Seconds(1001.0));
     Simulator::Run();
     Simulator::Destroy();
     NS_LOG_INFO("Done.");

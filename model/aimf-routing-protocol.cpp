@@ -253,12 +253,12 @@ namespace ns3 {
             /* when sending on local multicast, there have to be interface specified */
             if (dest.IsLocalMulticast()) {
                 NS_ASSERT_MSG(oif, "Try to send on link-local multicast address, and no interface index is given!");
-
+NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLocal());
                 rtentry = Create<Ipv4Route> ();
                 rtentry->SetDestination(dest);
                 rtentry->SetGateway(Ipv4Address::GetZero());
                 rtentry->SetOutputDevice(oif);
-                rtentry->SetSource(m_ipv4->GetAddress(oif->GetIfIndex(), 0).GetLocal());
+                rtentry->SetSource(m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLocal());
                 return rtentry;
             }
 
