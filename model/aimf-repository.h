@@ -45,12 +45,9 @@ namespace ns3 {
             /// Main address of a neighbor node.
             Ipv4Address neighborMainAddr;
             /// Neighbor Type and Link Type at the four less significative digits.
-            std::pair<Ipv4Address, Ipv4Address> groupToSource;
 
-            enum Status {
-                STATUS_NOT_SYM = 0, // "not symmetric"
-                STATUS_SYM = 1, // "symmetric"
-            } status;
+            Time expirationTime;
+
             /// A value between 0 and 7 specifying the node's willingness to carry traffic on behalf of other nodes.
             uint8_t willingness;
         };
@@ -58,14 +55,12 @@ namespace ns3 {
         static inline bool
         operator==(const NeighborTuple &a, const NeighborTuple &b) {
             return (a.neighborMainAddr == b.neighborMainAddr
-                    && a.status == b.status
                     && a.willingness == b.willingness);
         }
 
         static inline std::ostream&
         operator<<(std::ostream &os, const NeighborTuple &tuple) {
             os << "NeighborTuple(neighborMainAddr=" << tuple.neighborMainAddr
-                    << ", status=" << (tuple.status == NeighborTuple::STATUS_SYM ? "SYM" : "NOT_SYM")
                     << ", willingness=" << (int) tuple.willingness << ")";
             return os;
         }
@@ -104,7 +99,7 @@ namespace ns3 {
             /// Network Address of network reachable through gatewayAddr
             Ipv4Address source;
             /// Time at which this tuple expires and must be removed
-            Time expirationTime;
+Time expirationTime;
         };
 
         static inline bool

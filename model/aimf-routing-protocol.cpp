@@ -25,8 +25,7 @@
 #include "ns3/aimf-header.h"
 #include "ns3/udp-socket.h"
 #include "ns3/aimf-repository.h"
-
-/********** Useful macros **********/
+#include "ns3/aimf-routing-protocol.h"
 
 ///
 /// \brief Gets the delay between a given time and the current time.
@@ -50,29 +49,8 @@
 /********** Holding times **********/
 
 /// Neighbor holding time.
-#define AIMF_NEIGHB_HOLD_TIME   Time (3 * AIMF_REFRESH_INTERVAL)
-/// HMA holding time.
-#define AIMF_HNA_HOLD_TIME      Time (1 * m_hnaInterval)
+#define AIMF_NEIGHB_HOLD_TIME   Time (2 * AIMF_REFRESH_INTERVAL)
 
-/********** Link types **********/
-
-/// Unspecified link type.
-#define AIMF_UNSPEC_LINK        0
-/// Asymmetric link type.
-#define AIMF_ASYM_LINK          1
-/// Symmetric link type.
-#define AIMF_SYM_LINK           2
-/// Lost link type.
-#define AIMF_LOST_LINK          3
-
-/********** Neighbor types **********/
-
-/// Not neighbor type.
-#define AIMF_NOT_NEIGH          0
-/// Symmetric neighbor type.
-#define AIMF_SYM_NEIGH          1
-/// Asymmetric neighbor type.
-#define AIMF_MPR_NEIGH          2
 
 
 /********** Willingness **********/
@@ -91,23 +69,15 @@
 #define AIMF_MCAST_ADR "224.0.0.12"
 /********** Miscellaneous constants **********/
 
-/// Maximum allowed jitter.
-#define AIMF_MAXJITTER          (m_helloInterval.GetSeconds () / 4)
+
 /// Maximum allowed sequence number.
 #define AIMF_MAX_SEQ_NUM        65535
-/// Random number between [0-AIMF_MAXJITTER] used to jitter AIMF packet transmission.
-#define JITTER (Seconds (m_uniformRandomVariable->GetValue (0, AIMF_MAXJITTER)))
+
+
 
 
 #define AIMF_PORT_NUMBER 1337
-/// Maximum number of messages per packet.
-#define AIMF_MAX_MSGS           64
 
-/// Maximum number of hellos per message (4 possible link types * 3 possible nb types).
-#define AIMF_MAX_HELLOS         12
-
-/// Maximum number of addresses advertised on a message.
-#define AIMF_MAX_ADDRS          64
 
 using std::make_pair;
 namespace ns3 {
@@ -136,12 +106,6 @@ namespace ns3 {
                     AIMF_WILL_DEFAULT, "default",
                     AIMF_WILL_HIGH, "high",
                     AIMF_WILL_ALWAYS, "always"))
-                    .AddTraceSource("Rx", "Receive AIMF packet.",
-                    MakeTraceSourceAccessor(&RoutingProtocol::m_rxPacketTrace),
-                    "ns3::aimf::RoutingProtocol::PacketTxRxTracedCallback")
-                    .AddTraceSource("Tx", "Send AIMF packet.",
-                    MakeTraceSourceAccessor(&RoutingProtocol::m_txPacketTrace),
-                    "ns3::aimf::RoutingProtocol::PacketTxRxTracedCallback")
                     .AddTraceSource("RoutingTableChanged", "The AIMF routing table has changed.",
                     MakeTraceSourceAccessor(&RoutingProtocol::m_routingTableChanged),
                     "ns3::aimf::RoutingProtocol::TableChangeTracedCallback")
@@ -152,8 +116,7 @@ namespace ns3 {
         RoutingProtocol::RoutingProtocol() :
         m_routingTableAssociation(0),
         m_ipv4(0),
-        m_helloTimer(Timer::CANCEL_ON_DESTROY),
-        m_queuedMessagesTimer(Timer::CANCEL_ON_DESTROY) {
+        m_helloTimer(Timer::CANCEL_ON_DESTROY) {
             m_uniformRandomVariable = CreateObject<UniformRandomVariable> ();
 
 
@@ -240,7 +203,7 @@ namespace ns3 {
                 messages.push_back(messageHeader);
             }
 
-            m_rxPacketTrace(aimfPacketHeader, messages);
+
 
             for (MessageList::const_iterator messageIter = messages.begin();
                     messageIter != messages.end(); messageIter++) {
@@ -259,17 +222,7 @@ namespace ns3 {
 
 
 
-                // Get main address of the peer, which may be different from the packet source address
-                //       const IfaceAssocTuple *ifaceAssoc = m_state.FindIfaceAssocTuple (inetSourceAddr.GetIpv4 ());
-                //       Ipv4Address peerMainAddress;
-                //       if (ifaceAssoc != NULL)
-                //         {
-                //           peerMainAddress = ifaceAssoc->mainAddr;
-                //         }
-                //       else
-                //         {
-                //           peerMainAddress = inetSourceAddr.GetIpv4 () ;
-                //         }
+               
 
 
                 switch (messageHeader.GetMessageType()) {
@@ -366,22 +319,15 @@ namespace ns3 {
                 uint32_t interface) {
             NS_LOG_FUNCTION(this << origin << " " << group << " " << interface);
             Ptr<Ipv4MulticastRoute> mrtentry = 0;
-
+            NS_LOG_DEBUG("Node " << m_mainAddress << ": willingness = " << int(m_willingness) << ". Node to forward? " << (bool)(!m_state.WillingnessOk(m_willingness)));
             if (!m_state.WillingnessOk(m_willingness))return mrtentry;
-            NS_LOG_DEBUG("Node " << m_mainAddress << ": willingness = " << int(m_willingness) << ". ");
+            NS_LOG_DEBUG("Node " << m_mainAddress << ": is forwarding master");
 
             for (std::map<Ipv4Address, Ipv4MulticastRoutingTableEntry>::const_iterator i = m_table.begin();
                     i != m_table.end();
                     i++) {
                 Ipv4MulticastRoutingTableEntry route = i->second;
-                //
-                // We've been passed an origin address, a multicast group address and an 
-                // interface index.  We have to decide if the current route in the list is
-                // a match.
-                //
-                // The first case is the restrictive case where the origin, group and index
-                // matches.
-                //
+
                 if (origin == route.GetOrigin() && group == route.GetGroup()) {
                     // Skipping this case (SSM) for now
                     NS_LOG_LOGIC("Found multicast source specific route" << i->first);
@@ -436,13 +382,13 @@ namespace ns3 {
             NS_ASSERT(m_ipv4 == 0);
             NS_LOG_DEBUG("Created aimf::RoutingProtocol");
             m_helloTimer.SetFunction(&RoutingProtocol::HelloTimerExpire, this);
-            m_queuedMessagesTimer.SetFunction(&RoutingProtocol::SendQueuedMessages, this);
+            
 
             m_packetSequenceNumber = AIMF_MAX_SEQ_NUM;
             m_messageSequenceNumber = AIMF_MAX_SEQ_NUM;
-            m_ansn = AIMF_MAX_SEQ_NUM;
+            
 
-            m_linkTupleTimerFirstTime = true;
+
 
             m_ipv4 = ipv4;
 
@@ -452,7 +398,7 @@ namespace ns3 {
         void RoutingProtocol::DoDispose() {
             m_ipv4 = 0;
 
-            m_routingTableAssociation = 0;
+            m_table.clear();
 
             for (std::map< Ptr<Socket>, Ipv4InterfaceAddress >::iterator iter = m_socketAddresses.begin();
                     iter != m_socketAddresses.end(); iter++) {
@@ -460,21 +406,16 @@ namespace ns3 {
             }
             m_socketAddresses.clear();
 
-            Ipv4RoutingProtocol::DoDispose();
+            // Ipv4RoutingProtocol::DoDispose();
         }
 
         Ptr<Ipv4Route>
         RoutingProtocol::RouteOutput(Ptr<Packet> p, const Ipv4Header &header, Ptr<NetDevice> oif, Socket::SocketErrno & sockerr) {
             Ptr<Ipv4Route> rtentry = 0;
 
-            // Multicast goes here
+
             if (header.GetDestination().IsMulticast()) {
-                // Note:  Multicast routes for outbound packets are stored in the
-                // normal unicast table.  An implication of this is that it is not
-                // possible to source multicast datagrams on multiple interfaces.
-                // This is a well-known property of sockets implementation on 
-                // many Unix variants.
-                // So, we just log it and fall through to LookupStatic ()
+
                 NS_LOG_LOGIC("RouteOutput()::Multicast destination");
             }
             rtentry = LookupStatic(header.GetDestination(), oif);
@@ -544,18 +485,6 @@ namespace ns3 {
         RoutingProtocol::NotifyRemoveAddress(uint32_t interface, Ipv4InterfaceAddress address) {
         }
 
-
-        ///
-        /// \brief Adds a new entry into the routing table.
-        ///
-        /// If an entry for the given destination existed, it is deleted and freed.
-        ///
-        /// \param dest address of the destination node.
-        /// \param next address of the next hop node.
-        /// \param iface address of the local interface.
-        /// \param dist distance to the destination node.
-        ///
-
         std::vector<Ipv4MulticastRoutingTableEntry>
         RoutingProtocol::GetRoutingTableEntries() const {
             std::vector<Ipv4MulticastRoutingTableEntry> retval;
@@ -593,13 +522,20 @@ namespace ns3 {
 
         }
 
+        void RoutingProtocol::ChangeWillingness(uint8_t will) {
+            m_willingness = will;
+        }
+
         void RoutingProtocol::DoInitialize() {
             Ipv4Address loopback("127.0.0.1");
+            NS_LOG_DEBUG("MainAddress " << m_mainAddress);
             if (m_mainAddress == Ipv4Address()) {
 
                 for (uint32_t i = 0; i < m_ipv4->GetNInterfaces(); i++) {
+                    
                     // Use primary address, if multiple
                     Ipv4Address addr = m_ipv4->GetAddress(i, 0).GetLocal();
+                    NS_LOG_DEBUG("One of the node's addresses: " << addr);
                     if (addr != loopback) {
                         m_mainAddress = addr;
                         break;
@@ -619,15 +555,8 @@ namespace ns3 {
                 if (addr == loopback)
                     continue;
 
-                if (addr != m_mainAddress) {
-                    // Create never expiring interface association tuple entries for our
-                    // own network interfaces, so that GetMainAddress () works to
-                    // translate the node's own interface addresses into the main address.
-                    IfaceAssocTuple tuple;
-                    tuple.ifaceAddr = addr;
-                    tuple.mainAddr = m_mainAddress;
-                    AddIfaceAssocTuple(tuple);
-                    NS_ASSERT(GetMainAddress(addr) == m_mainAddress);
+                if (addr != m_mainAddress) {                  
+                    continue;
                 }
 
                 if (m_interfaceExclusions.find(i) != m_interfaceExclusions.end())
@@ -644,6 +573,7 @@ namespace ns3 {
                 }
                 socket->BindToNetDevice(m_ipv4->GetNetDevice(i));
                 m_socketAddresses[socket] = m_ipv4->GetAddress(i, 0);
+                NS_LOG_DEBUG("One of the node's addresses which will be used to send hellos: " << m_ipv4->GetAddress(i, 0).GetLocal()<< " : "<< m_ipv4->GetNetDevice(i+1)->GetAddress() );
 
                 canRunAimf = true;
             }
@@ -656,27 +586,7 @@ namespace ns3 {
             }
         }
 
-        Ipv4Address
-        RoutingProtocol::GetMainAddress(Ipv4Address iface_addr) const {
-            const IfaceAssocTuple *tuple =
-                    m_state.FindIfaceAssocTuple(iface_addr);
-
-            if (tuple != NULL)
-                return tuple->mainAddr;
-            else
-                return iface_addr;
-        }
-
-        void
-        RoutingProtocol::AddIfaceAssocTuple(const IfaceAssocTuple &tuple) {
-            //   debug("%f: Node %d adds iface association tuple: main_addr = %d iface_addr = %d\n",
-            //         Simulator::Now (),
-            //         OLSR::node_id(ra_addr()),
-            //         OLSR::node_id(tuple->main_addr()),
-            //         OLSR::node_id(tuple->iface_addr()));
-
-            m_state.InsertIfaceAssocTuple(tuple);
-        }
+        
 
         void
         RoutingProtocol::AssociationTupleTimerExpire(Ipv4Address advertiser, Ipv4Address group, Ipv4Address source) {
@@ -732,8 +642,6 @@ namespace ns3 {
                         it->source,
                         now + msg.GetVTime()
                     };
-                    NeighborTuple nb_tuple = {msg.GetOriginatorAddress()
-                        , nb_tuple.willingness = msg.GetHello().willingness};
                     AddAssociationTuple(assocTuple);
 
                     //Schedule Association Tuple deletion
@@ -742,11 +650,15 @@ namespace ns3 {
                             assocTuple.advertiser, assocTuple.group, assocTuple.source);
 
                 }
-
             }
+
+
+
+
+
 #endif // NS3_LOG_ENABLE
 
-            PopulateNeighborSet(msg, hello);
+            PopulateNeighborSet(msg, now);
 
 
 
@@ -762,16 +674,45 @@ namespace ns3 {
         RoutingProtocol::AddNeigbour(NeighborTuple tuple) {
 
             m_state.InsertNeighborTuple(tuple);
-            
+
         }
 
         void
         RoutingProtocol::PopulateNeighborSet(const aimf::MessageHeader &msg,
-                const aimf::MessageHeader::Hello & hello) {
-            NeighborTuple *nb_tuple = m_state.FindNeighborTuple(msg.GetOriginatorAddress());
-            if (nb_tuple != NULL) {
-                nb_tuple->willingness = hello.willingness;
+                const Time & now) {
+            NS_LOG_DEBUG("received willingness " << int(msg.GetHello().willingness) << " from " << msg.GetOriginatorAddress());
+            NeighborTuple *tuple = m_state.FindNeighborTuple(msg.GetOriginatorAddress());
+            if (tuple != NULL) {
+                NS_LOG_DEBUG(Simulator::Now().GetSeconds()
+                        << "s AIMF node " << m_mainAddress
+                        << " updating " << tuple->neighborMainAddr << "'s expiration time from " << tuple->expirationTime.GetSeconds() << " to " << ((Time)now + msg.GetVTime()).GetSeconds());
+                tuple->expirationTime = now + msg.GetVTime();
+                tuple->willingness = msg.GetHello().willingness;
+
+            } else {
+                NeighborTuple nb_tuple = {msg.GetOriginatorAddress()
+                    , now + msg.GetVTime(), msg.GetHello().willingness};
+
+
+                AddNeigbour(nb_tuple);
+                //nb_tuple.expirationTime
+
+                NS_LOG_DEBUG(Simulator::Now().GetSeconds()
+                        << "s AIMF node " << m_mainAddress
+                        << " adding " << nb_tuple.neighborMainAddr << " as neighbour. Scheduled for removal at: " << nb_tuple.expirationTime.GetSeconds());
+
+                Simulator::Schedule(DELAY(nb_tuple.expirationTime), &RoutingProtocol::RemoveNeighborset, this, nb_tuple.neighborMainAddr);
             }
+
+
+        }
+
+        void
+        RoutingProtocol::RemoveNeighborset(Ipv4Address adress) {
+            NS_LOG_DEBUG(Simulator::Now().GetSeconds()
+                    << "s AIMF node " << m_mainAddress
+                    << " erasing node " << adress);
+            m_state.EraseNeighborTuple(adress);
         }
 
         void
@@ -784,13 +725,6 @@ namespace ns3 {
         RoutingProtocol::RemoveEntry(Ipv4Address const &group) {
             m_table.erase(group);
         }
-
-        ///
-        /// \brief Looks up an entry for the specified destination address.
-        /// \param dest destination address.
-        /// \param outEntry output parameter to hold the routing entry result, if fuond
-        /// \return true if found, false if not found
-        ///
 
         void
         RoutingProtocol::AddEntry(Ipv4Address const &group,
@@ -813,7 +747,7 @@ namespace ns3 {
             NS_LOG_DEBUG(Simulator::Now().GetSeconds() << " s: Node " << m_mainAddress
                     << ": RoutingTableComputation begin...");
 
-            // 1. All the entries from the routing table are removed.
+
             Clear();
 
             std::vector<uint32_t> outint;
@@ -868,29 +802,15 @@ namespace ns3 {
                 aimf::MessageHeader::Hello::Association assoc = {it->group, it->source};
                 associations.push_back(assoc);
             }
-            // If there is no HMA associations to send, return without queuing the message
-            if (associations.size() == 0) {
-                return;
-            }
-
+          
 
 
             NS_LOG_DEBUG("AIMF HELLO message size: " << int (msg.GetSerializedSize()));
-            QueueMessage(msg, JITTER);
+            SendMessage(msg);
         }
 
         void
-        RoutingProtocol::QueueMessage(const MessageHeader &message, Time delay) {
-            m_queuedMessages.push_back(message);
-            if (not m_queuedMessagesTimer.IsRunning()) {
-                m_queuedMessagesTimer.SetDelay(delay);
-                m_queuedMessagesTimer.Schedule();
-            }
-        }
-
-        void
-        RoutingProtocol::SendPacket(Ptr<Packet> packet,
-                const MessageList & containedMessages) {
+        RoutingProtocol::SendPacket(Ptr<Packet> packet) {
             NS_LOG_DEBUG("AIMF node " << m_mainAddress << " sending a AIMF packet");
 
             // Add a header
@@ -899,13 +819,14 @@ namespace ns3 {
             header.SetPacketSequenceNumber(GetPacketSequenceNumber());
             packet->AddHeader(header);
 
-            // Trace it
-            m_txPacketTrace(header, containedMessages);
+
 
             // Send it
             for (std::map<Ptr<Socket>, Ipv4InterfaceAddress>::const_iterator i =
                     m_socketAddresses.begin(); i != m_socketAddresses.end(); i++) {
                 Ipv4Address mcast = Ipv4Address(AIMF_MCAST_ADR);
+                NS_LOG_DEBUG("Using socket with  " << i->second.GetLocal() << " as src address.");
+                
                 i->first->SendTo(packet, 0, InetSocketAddress(mcast, AIMF_PORT_NUMBER));
             }
         }
@@ -916,35 +837,27 @@ namespace ns3 {
         }
 
         void
-        RoutingProtocol::SendQueuedMessages() {
+        RoutingProtocol::SendMessage(const MessageHeader &message) {
             Ptr<Packet> packet = Create<Packet> ();
-            int numMessages = 0;
 
-            NS_LOG_DEBUG("Aimf node " << m_mainAddress << ": SendQueuedMessages");
+            NS_LOG_DEBUG("Aimf node " << m_mainAddress << ": SendMessage");
 
-            MessageList msglist;
 
-            for (std::vector<MessageHeader>::const_iterator message = m_queuedMessages.begin();
-                    message != m_queuedMessages.end();
-                    message++) {
-                Ptr<Packet> p = Create<Packet> ();
-                (*p).AddHeader(*message);
-                packet->AddAtEnd(p);
-                msglist.push_back(*message);
-                if (++numMessages == AIMF_MAX_MSGS) {
-                    SendPacket(packet, msglist);
-                    msglist.clear();
-                    // Reset variables for next packet
-                    numMessages = 0;
-                    packet = Create<Packet> ();
-                }
-            }
 
-            if (packet->GetSize()) {
-                SendPacket(packet, msglist);
-            }
 
-            m_queuedMessages.clear();
+            Ptr<Packet> p = Create<Packet> ();
+            (*p).AddHeader(message);
+            packet->AddAtEnd(p);
+            SendPacket(packet);
+
+
+
+
+
+
+
+
+
         }
 
         void

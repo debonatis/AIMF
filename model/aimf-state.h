@@ -47,12 +47,9 @@ namespace ns3 {
             void EraseNeighborTuple(const NeighborTuple &neighborTuple);
             void EraseNeighborTuple(const Ipv4Address &mainAddr);
             void InsertNeighborTuple(const NeighborTuple &tuple);
-            bool WillingnessOk(uint8_t const &will);
+            bool WillingnessOk(uint8_t const will);
 
-            IfaceAssocTuple* FindIfaceAssocTuple(const Ipv4Address &ifaceAddr);
-            const IfaceAssocTuple* FindIfaceAssocTuple(const Ipv4Address &ifaceAddr) const;
-            void EraseIfaceAssocTuple(const IfaceAssocTuple &tuple);
-            void InsertIfaceAssocTuple(const IfaceAssocTuple &tuple);
+            
 
 
             // Host-Network Association

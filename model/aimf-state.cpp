@@ -26,7 +26,7 @@ namespace ns3 {
         AimfState::FindSymNeighborTuple(Ipv4Address const &mainAddr) const {
             for (NeighborSet::const_iterator it = m_neighborSet.begin();
                     it != m_neighborSet.end(); it++) {
-                if (it->neighborMainAddr == mainAddr && it->status == NeighborTuple::STATUS_SYM)
+                if (it->neighborMainAddr == mainAddr)
                     return &(*it);
             }
             return NULL;
@@ -43,14 +43,16 @@ namespace ns3 {
         }
 
         bool
-        AimfState::WillingnessOk(uint8_t const &will) {
+        AimfState::WillingnessOk(uint8_t const will) {
             uint8_t k = 0;
+           
             for (NeighborSet::iterator it = m_neighborSet.begin();
                     it != m_neighborSet.end(); it++) {
+
                 if (it->willingness > k)
                     k = it->willingness;
             }
-            return (will > k);
+            return (will >= k);
         }
 
         void
@@ -90,24 +92,6 @@ namespace ns3 {
 
         /********** Host-Multicast Association Set Manipulation **********/
 
-        IfaceAssocTuple* AimfState::FindIfaceAssocTuple(const Ipv4Address& ifaceAddr) {
-            for (IfaceAssocSet::iterator it = m_ifaceAssocSet.begin();
-                    it != m_ifaceAssocSet.end(); it++) {
-                if (it->ifaceAddr == ifaceAddr)
-                    return &(*it);
-            }
-            return NULL;
-        }
-
-        const IfaceAssocTuple*
-        AimfState::FindIfaceAssocTuple(const Ipv4Address& ifaceAddr) const {
-            for (IfaceAssocSet::const_iterator it = m_ifaceAssocSet.begin();
-                    it != m_ifaceAssocSet.end(); it++) {
-                if (it->ifaceAddr == ifaceAddr)
-                    return &(*it);
-            }
-            return NULL;
-        }
 
         AssociationTuple*
         AimfState::FindAssociationTuple(const Ipv4Address &advertiser, const Ipv4Address &group, const Ipv4Address &source) {
@@ -145,11 +129,6 @@ namespace ns3 {
         void
         AimfState::InsertAssociation(const Association &tuple) {
             m_associations.push_back(tuple);
-        }
-
-        void
-        AimfState::InsertIfaceAssocTuple(const IfaceAssocTuple &tuple) {
-            m_ifaceAssocSet.push_back(tuple);
         }
 
     }

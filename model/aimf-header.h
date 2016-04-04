@@ -301,7 +301,7 @@ namespace ns3 {
         }
 
         typedef std::vector<MessageHeader> MessageList;
-
+       
         static inline std::ostream& operator<<(std::ostream& os, const MessageList & messages) {
             os << "[";
             for (std::vector<MessageHeader>::const_iterator messageIter = messages.begin();
@@ -309,12 +309,12 @@ namespace ns3 {
                 messageIter->Print(os);
                 if (messageIter + 1 != messages.end())
                     os << ", ";
-            }
+    }
             os << "]";
             return os;
-        }
+}
+        
     }
 }
-
 #endif	/* AIMF_HEADER_H */
 

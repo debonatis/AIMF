@@ -74,8 +74,7 @@ namespace ns3 {
             //             * \param [in] header
             //             * \param [in] messages
             //             */
-            typedef void (* PacketTxRxTracedCallback)
-            (const PacketHeader & header, const MessageList & messages);
+           
             //
             //            /**
             //             * TracedCallback signature for routing table computation.
@@ -97,27 +96,29 @@ namespace ns3 {
             std::set<uint32_t> GetInterfaceExclusions() const {
                 return m_interfaceExclusions;
             }
+            void AddNeigbour(NeighborTuple tuple);
+            void RemoveNeighborset(Ipv4Address adress);
             void SetInterfaceExclusions(std::set<uint32_t> exceptions);
 
-          
+
             void AddHostNetworkAssociation(Ipv4Address group, Ipv4Address source);
-            
+
             void RemoveHostNetworkAssociation(Ipv4Address group, Ipv4Address source);
 
-            
-            void SetRoutingTableAssociation(Ptr<Ipv4StaticRouting> routingTable);
 
-            
+            void SetRoutingTableAssociation(Ptr<Ipv4StaticRouting> routingTable);
+            void ChangeWillingness(uint8_t will);
+
             Ptr<const Ipv4StaticRouting> GetRoutingTableAssociation() const;
 
         protected:
             virtual void DoInitialize(void);
         private:
             std::map<Ipv4Address, Ipv4MulticastRoutingTableEntry> m_table; ///< Data structure for the routing table.
-            
+
 
             EventGarbageCollector m_events;
-          
+
             // Packets sequence number counter.
             uint16_t m_packetSequenceNumber;
             // Messages sequence number counter.
@@ -134,9 +135,9 @@ namespace ns3 {
             //
             Ptr<Ipv4> m_ipv4;
             //
-            void Clear(); 
+            void Clear();
             //
-            
+
             void RemoveEntry(const Ipv4Address &dest); //ok
             void AddEntry(const Ipv4Address &dgroup,
                     const Ipv4Address &source,
@@ -189,7 +190,7 @@ namespace ns3 {
              */
             NetworkRoutes m_networkRoutes;
 
-           
+
 
             bool FindSendEntry(const Ipv4MulticastRoutingTableEntry &entry,
                     Ipv4MulticastRoutingTableEntry & outEntry) const;
@@ -215,7 +216,7 @@ namespace ns3 {
 
 
 
-            void SendPacket(Ptr<Packet> packet, const MessageList & containedMessages); //ok
+            void SendPacket(Ptr<Packet> packet); //ok
 
             /// Increments packet sequence number and returns the new value.
             inline uint16_t GetPacketSequenceNumber(); //ok
@@ -226,24 +227,25 @@ namespace ns3 {
 
 
             void RoutingTableComputation(); //ok
-            Ipv4Address GetMainAddress(Ipv4Address iface_addr) const;
-            
+           
+
             Timer m_helloTimer;
             void HelloTimerExpire();
+
             
-            bool m_linkTupleTimerFirstTime;
-          
-            
+
             // A list of pending messages which are buffered awaiting for being sent.
-            aimf::MessageList m_queuedMessages;
-            Timer m_queuedMessagesTimer; // timer for throttling outgoing messages
             
-            void QueueMessage(const aimf::MessageHeader &message, Time delay); //ok
-            void SendQueuedMessages(); //ok
+            
+
+           
+
+            
+            void SendMessage(const MessageHeader &message); //ok
             void SendHello(); //ok
             void AddAssociationTuple(const AssociationTuple &tuple);
             void RemoveAssociationTuple(const AssociationTuple &tuple);
-            void AddIfaceAssocTuple(const IfaceAssocTuple &tuple);
+            
 
 
 
@@ -253,7 +255,8 @@ namespace ns3 {
                     const Ipv4Address & senderIface); //ok
 
             void PopulateNeighborSet(const aimf::MessageHeader &msg,
-                    const aimf::MessageHeader::Hello & hello);
+                    const Time & now);
+           
             /// Check that address is one of my interfaces
             bool IsMyOwnAddress(const Ipv4Address & a) const;
 
@@ -262,10 +265,8 @@ namespace ns3 {
 
             std::map< Ptr<Socket>, Ipv4InterfaceAddress > m_socketAddresses;
 
-            TracedCallback <const PacketHeader &,
-            const MessageList &> m_rxPacketTrace;
-            TracedCallback <const PacketHeader &,
-            const MessageList &> m_txPacketTrace;
+            
+            
             TracedCallback <uint32_t> m_routingTableChanged;
 
             /// Provides uniform random variables.
