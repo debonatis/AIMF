@@ -67,13 +67,7 @@ namespace ns3 {
             //             * \return the number of stream indices assigned by this model
             //             */
             int64_t AssignStreams(int64_t stream);
-            //
-            //            /**
-            //             * TracedCallback signature for Packet transmit and receive events.
-            //             *
-            //             * \param [in] header
-            //             * \param [in] messages
-            //             */
+          
            
             //
             //            /**
