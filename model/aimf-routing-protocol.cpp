@@ -121,6 +121,7 @@ namespace ns3 {
         m_ipv4(0),
         m_helloTimer(Timer::CANCEL_ON_DESTROY) {
             m_uniformRandomVariable = CreateObject<UniformRandomVariable> ();
+            m_uniformRandomVariable2 = CreateObject<UniformRandomVariable> ();
 
 
 
@@ -251,7 +252,10 @@ namespace ns3 {
         void
         RoutingProtocol::PartitionTimerExpire(Ipv4Address group, bool spotted) {
             Time now = Simulator::Now();
-
+            double min = 0.0;
+            double max = 10.0;
+            m_uniformRandomVariable2->SetAttribute("Min", DoubleValue(min));
+            m_uniformRandomVariable2->SetAttribute("Max", DoubleValue(max));
             for (std::map<Ipv4Address, Ipv4MulticastRoutingTableEntry>::const_iterator i = m_table.begin();
                     i != m_table.end();
                     i++) {
@@ -259,37 +263,44 @@ namespace ns3 {
                 if (group == route.GetGroup()) {
                     Time * t = m_state.FindTimer(group);
                     if (t == NULL) {
-                        Time k = (Time(PARTITION_HOLD_TIMER + now));
+                        Time k = (PARTITION_HOLD_TIMER * (15 - ((int) m_willingness))*2) + now;
                         m_state.AddTimer(group, k);
                         t = m_state.FindTimer(group);
-
-
+                        timerForPartition = Simulator::Schedule(*t, &aimf::RoutingProtocol::PartitionTimerExpire, this, group, false);
+                        return;
                     }
                     if (*t < Simulator::Now()) {
                         NS_LOG_DEBUG(Simulator::Now().GetSeconds() << " " << group << " is not spotted. ");
+                        NS_LOG_DEBUG("Old time: " << t->GetSeconds() << ".");
+
+                        *t = (PARTITION_HOLD_TIMER + Seconds(8 - ((int) m_willingness))) + now + Seconds(m_uniformRandomVariable2->GetValue());
+                        NS_LOG_DEBUG("New time: " << t->GetSeconds() << ".");
                         if (!m_state.WillingnessOk(m_willingness)) {
-                            
+                            m_lastWillingness = m_willingness;
+                            if ((m_state.WillingnessMaxInSystem() + 1) <= AIMF_WILL_ALWAYS) {
+                                ChangeWillingness(m_state.WillingnessMaxInSystem() + 1);
+                            } else {
                                 ChangeWillingness(AIMF_WILL_ALWAYS);
+                            }
+
                         }
-                        isFirstSpoot = true;
+
                         timerForPartition.Cancel();
 
                     } else if (spotted) {
                         NS_LOG_DEBUG(Simulator::Now().GetSeconds() << " " << group << " is spotted. ");
                         NS_LOG_DEBUG("Old time: " << t->GetSeconds() << ".");
-                        *t = (PARTITION_HOLD_TIMER * (8 - ((int) m_willingness))) + now;
+                        *t = (PARTITION_HOLD_TIMER + Seconds(8 - ((int) m_willingness))) + now + Seconds(m_uniformRandomVariable2->GetValue());
                         NS_LOG_DEBUG("New time: " << t->GetSeconds() << ".");
 
-
-                        if (isFirstSpoot) {
-                            ChangeWillingness(m_state.WillingnessNextMaxInSystem() - 1);
-                            
-                            isFirstSpoot = false;
-                        } else if (m_willingness > AIMF_WILL_DEFAULT) {
+                        ChangeWillingness(m_lastWillingness);
+                        if (m_willingness > AIMF_WILL_HIGH) {
                             ChangeWillingness(AIMF_WILL_DEFAULT);
                         }
-                        timerForPartition = Simulator::Schedule(*t, &aimf::RoutingProtocol::PartitionTimerExpire, this, group, false);
+
                     }
+                    timerForPartition = Simulator::Schedule(*t, &aimf::RoutingProtocol::PartitionTimerExpire, this, group, false);
+
                 }
             }
 
@@ -494,14 +505,17 @@ namespace ns3 {
             // Check if input device supports IP 
             NS_ASSERT(m_ipv4->GetInterfaceForDevice(idev) >= 0);
             if (header.GetDestination().IsMulticast()) {
-                if (!m_state.WillingnessOk(m_willingness)) {
-                    if (m_netdevice.find(m_ipv4->GetInterfaceForDevice(idev)) != m_netdevice.end()) {
-                        PartitionTimerExpire(header.GetDestination(), true);
-                        NS_LOG_DEBUG("Node " << m_mainAddress << ": Spotted multicast group (" << header.GetDestination() << "," << header.GetSource() << "). InputInterface was: " << m_ipv4->GetAddress(m_ipv4->GetInterfaceForDevice(idev), 0).GetLocal());
 
-                    }
+                if (m_netdevice.find(m_ipv4->GetInterfaceForDevice(idev)) != m_netdevice.end()) {
+                    PartitionTimerExpire(header.GetDestination(), true);
+                    NS_LOG_DEBUG("Node " << m_mainAddress << ": Spotted multicast group (" << header.GetDestination() << "," << header.GetSource() << "). InputInterface was: " << m_ipv4->GetAddress(m_ipv4->GetInterfaceForDevice(idev), 0).GetLocal());
                     return false;
                 }
+
+                if (!m_state.WillingnessOk(m_willingness)) {
+                    return false;
+                }
+
 
 
                 NS_LOG_LOGIC("Multicast destination");
@@ -601,6 +615,7 @@ namespace ns3 {
         void RoutingProtocol::DoInitialize() {
             Ipv4Address loopback("127.0.0.1");
             m_lastWillingness = m_willingness;
+
             isSleep = false;
             NS_LOG_DEBUG("MainAddress " << m_mainAddress);
             if (m_mainAddress == Ipv4Address()) {
@@ -962,7 +977,10 @@ namespace ns3 {
             m_state.InsertAssociation((Association) {
                 group, source
             });
+
+
             RoutingTableComputation();
+            Simulator::ScheduleNow(&aimf::RoutingProtocol::PartitionTimerExpire, this, group, true);
         }
 
         void

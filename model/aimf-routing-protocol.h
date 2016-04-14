@@ -276,6 +276,7 @@ namespace ns3 {
 
             /// Provides uniform random variables.
             Ptr<UniformRandomVariable> m_uniformRandomVariable;
+            Ptr<UniformRandomVariable> m_uniformRandomVariable2;
 
         };
 
