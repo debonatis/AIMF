@@ -4,6 +4,7 @@
 #include "ns3/names.h"
 #include "ns3/ptr.h"
 #include "ns3/ipv4-list-routing.h"
+#include "ns3/aimf-helper.h"
 
 namespace ns3 {
 
@@ -14,6 +15,7 @@ namespace ns3 {
     AimfHelper::AimfHelper(const AimfHelper &o)
     : m_agentFactory(o.m_agentFactory) {
         m_interfaceExclusions = o.m_interfaceExclusions;
+        m_netdevices = o.m_netdevices;
     }
 
     AimfHelper*
@@ -35,14 +37,33 @@ namespace ns3 {
         }
     }
 
+    void AimfHelper::SetListenNetDevice(Ptr<Node> node, uint32_t interface) {
+        std::map<Ptr<Node>, std::set<uint32_t>  >::iterator it = m_netdevices.find(node);
+
+        if (it == m_netdevices.end()) {
+            std::set<uint32_t> interfaces;
+            interfaces.insert(interface);
+            
+            m_netdevices.insert(std::make_pair(node, std::set<uint32_t> (interfaces)));
+        } else{
+            it->second.insert(interface);
+        }
+    }
+
     Ptr<Ipv4RoutingProtocol>
     AimfHelper::Create(Ptr<Node> node) const {
         Ptr<aimf::RoutingProtocol> agent = m_agentFactory.Create<aimf::RoutingProtocol> ();
 
         std::map<Ptr<Node>, std::set<uint32_t> >::const_iterator it = m_interfaceExclusions.find(node);
+        std::map<Ptr<Node>, std::set<uint32_t> >::const_iterator it2 = m_netdevices.find(node);
 
         if (it != m_interfaceExclusions.end()) {
             agent->SetInterfaceExclusions(it->second);
+        }
+
+        if (it2 != m_netdevices.end()) {
+
+            agent->SetNetdevicelistener(it2->second);
         }
 
         node->AggregateObject(agent);

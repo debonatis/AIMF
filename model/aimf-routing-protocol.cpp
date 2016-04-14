@@ -6,6 +6,7 @@
  */
 #define NS_LOG_APPEND_CONTEXT                                   \
   if (GetObject<Node> ()) { std::clog << "[node " << GetObject<Node> ()->GetId () << "] "; }
+
 #include "aimf-routing-protocol.h"
 #include "ns3/log.h"
 #include "ns3/socket-factory.h"
@@ -26,6 +27,7 @@
 #include "ns3/udp-socket.h"
 #include "ns3/aimf-repository.h"
 #include "ns3/aimf-routing-protocol.h"
+#include "src/olsr/test/hello-regression-test.h"
 
 ///
 /// \brief Gets the delay between a given time and the current time.
@@ -39,7 +41,7 @@
 
 
 ///
-/// \brief Period at which a node must cite every link and every neighbor.
+/// \brief Period at which a node must cite neighbor.
 ///
 /// We only use this value in order to define AIMF_NEIGHB_HOLD_TIME.
 ///
@@ -49,7 +51,8 @@
 /********** Holding times **********/
 
 /// Neighbor holding time.
-#define AIMF_NEIGHB_HOLD_TIME   Time (2 * AIMF_REFRESH_INTERVAL)
+#define AIMF_NEIGHB_HOLD_TIME   Time (3 * AIMF_REFRESH_INTERVAL)
+#define PARTITION_HOLD_TIMER  Time (3 * AIMF_REFRESH_INTERVAL)
 
 
 
@@ -127,7 +130,8 @@ namespace ns3 {
         };
 
 
-        std::map<ns3::Ipv4Address, Ipv4MulticastRoutingTableEntry> m_table; ///< Data structure for the routing table.
+        std::map<ns3::Ipv4Address, Ipv4MulticastRoutingTableEntry> m_table;
+        ///< Data structure for the routing table.
 
         ns3::Ptr<ns3::Ipv4StaticRouting> m_RoutingTable;
 
@@ -142,11 +146,11 @@ namespace ns3 {
 
         /// HELLO messages' emission interval.
         Time m_helloInterval;
-        /// TC messages' emission interval.
-        /// HNA messages' emission interval.
-        Time m_hnaInterval;
-        /// Willingness for forwarding packets on behalf of other nodes.
-        uint8_t m_willingness;
+
+        volatile uint8_t m_willingness;
+        volatile bool isSleep;
+
+        EventId timerForPartition;
 
         /// Internal state with all needed data structs.
 
@@ -222,7 +226,7 @@ namespace ns3 {
 
 
 
-               
+
 
 
                 switch (messageHeader.GetMessageType()) {
@@ -244,6 +248,55 @@ namespace ns3 {
             RoutingTableComputation();
         }
 
+        void
+        RoutingProtocol::PartitionTimerExpire(Ipv4Address group, bool spotted) {
+            Time now = Simulator::Now();
+
+            for (std::map<Ipv4Address, Ipv4MulticastRoutingTableEntry>::const_iterator i = m_table.begin();
+                    i != m_table.end();
+                    i++) {
+                Ipv4MulticastRoutingTableEntry route = i->second;
+                if (group == route.GetGroup()) {
+                    Time * t = m_state.FindTimer(group);
+                    if (t == NULL) {
+                        Time k = (Time(PARTITION_HOLD_TIMER + now));
+                        m_state.AddTimer(group, k);
+                        t = m_state.FindTimer(group);
+
+
+                    }
+                    if (*t < Simulator::Now()) {
+                        NS_LOG_DEBUG(Simulator::Now().GetSeconds() << " " << group << " is not spotted. ");
+                        if (!m_state.WillingnessOk(m_willingness)) {
+                            
+                                ChangeWillingness(AIMF_WILL_ALWAYS);
+                        }
+                        isFirstSpoot = true;
+                        timerForPartition.Cancel();
+
+                    } else if (spotted) {
+                        NS_LOG_DEBUG(Simulator::Now().GetSeconds() << " " << group << " is spotted. ");
+                        NS_LOG_DEBUG("Old time: " << t->GetSeconds() << ".");
+                        *t = (PARTITION_HOLD_TIMER * (8 - ((int) m_willingness))) + now;
+                        NS_LOG_DEBUG("New time: " << t->GetSeconds() << ".");
+
+
+                        if (isFirstSpoot) {
+                            ChangeWillingness(m_state.WillingnessNextMaxInSystem() - 1);
+                            
+                            isFirstSpoot = false;
+                        } else if (m_willingness > AIMF_WILL_DEFAULT) {
+                            ChangeWillingness(AIMF_WILL_DEFAULT);
+                        }
+                        timerForPartition = Simulator::Schedule(*t, &aimf::RoutingProtocol::PartitionTimerExpire, this, group, false);
+                    }
+                }
+            }
+
+
+
+        }
+
         Ptr<Ipv4Route>
         RoutingProtocol::LookupStatic(Ipv4Address dest, Ptr<NetDevice> oif) {
             NS_LOG_FUNCTION(this << dest << " " << oif);
@@ -253,12 +306,12 @@ namespace ns3 {
             /* when sending on local multicast, there have to be interface specified */
             if (dest.IsLocalMulticast()) {
                 NS_ASSERT_MSG(oif, "Try to send on link-local multicast address, and no interface index is given!");
-NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLocal());
+                NS_LOG_DEBUG("src address= " << m_ipv4->GetAddress(oif->GetIfIndex() + 1, 0).GetLocal());
                 rtentry = Create<Ipv4Route> ();
                 rtentry->SetDestination(dest);
-                rtentry->SetGateway(Ipv4Address::GetZero());
+                rtentry->SetGateway(m_ipv4->GetAddress(oif->GetIfIndex() + 1, 0).GetLocal());
                 rtentry->SetOutputDevice(oif);
-                rtentry->SetSource(m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLocal());
+                rtentry->SetSource(m_ipv4->GetAddress(oif->GetIfIndex() + 1, 0).GetLocal());
                 return rtentry;
             }
 
@@ -319,34 +372,36 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
                 uint32_t interface) {
             NS_LOG_FUNCTION(this << origin << " " << group << " " << interface);
             Ptr<Ipv4MulticastRoute> mrtentry = 0;
-            NS_LOG_DEBUG("Node " << m_mainAddress << ": willingness = " << int(m_willingness) << ". Node to forward? " << (bool)(!m_state.WillingnessOk(m_willingness)));
-            if (!m_state.WillingnessOk(m_willingness))return mrtentry;
-            NS_LOG_DEBUG("Node " << m_mainAddress << ": is forwarding master");
+            NS_LOG_DEBUG("Node " << m_mainAddress << "(S,G) pair: (" << origin << "," << group << ")");
 
-            for (std::map<Ipv4Address, Ipv4MulticastRoutingTableEntry>::const_iterator i = m_table.begin();
-                    i != m_table.end();
-                    i++) {
-                Ipv4MulticastRoutingTableEntry route = i->second;
+            if (!isSleep) {
+                for (std::map<Ipv4Address, Ipv4MulticastRoutingTableEntry>::const_iterator i = m_table.begin();
+                        i != m_table.end();
+                        i++) {
+                    Ipv4MulticastRoutingTableEntry route = i->second;
 
-                if (origin == route.GetOrigin() && group == route.GetGroup()) {
-                    // Skipping this case (SSM) for now
-                    NS_LOG_LOGIC("Found multicast source specific route" << i->first);
-                }
-                if (group == route.GetGroup() && group == i->first) {
-                    if (interface == Ipv4::IF_ANY ||
-                            interface == route.GetInputInterface()) {
-                        NS_LOG_LOGIC("Found multicast route" << i->first);
-                        mrtentry = Create<Ipv4MulticastRoute> ();
-                        mrtentry->SetGroup(route.GetGroup());
-                        mrtentry->SetOrigin(route.GetOrigin());
-                        mrtentry->SetParent(route.GetInputInterface());
-                        for (uint32_t j = 0; j < route.GetNOutputInterfaces(); j++) {
-                            if (route.GetOutputInterface(j)) {
-                                NS_LOG_LOGIC("Setting output interface index " << route.GetOutputInterface(j));
-                                mrtentry->SetOutputTtl(route.GetOutputInterface(j), Ipv4MulticastRoute::MAX_TTL - 1);
+                    if (origin == route.GetOrigin() && group == route.GetGroup()) {
+                        // Skipping this case (SSM) for now
+                        NS_LOG_LOGIC("Found multicast source specific route" << i->first);
+                    }
+                    if (group == route.GetGroup() && group == i->first) {
+                        if (interface == Ipv4::IF_ANY ||
+                                interface == route.GetInputInterface()) {
+                            NS_LOG_LOGIC("Found multicast route" << i->first);
+
+                            NS_LOG_DEBUG("Node " << m_mainAddress << ": is forwarding master");
+                            mrtentry = Create<Ipv4MulticastRoute> ();
+                            mrtentry->SetGroup(route.GetGroup());
+                            mrtentry->SetOrigin(route.GetOrigin());
+                            mrtentry->SetParent(route.GetInputInterface());
+                            for (uint32_t j = 0; j < route.GetNOutputInterfaces(); j++) {
+                                if (route.GetOutputInterface(j)) {
+                                    NS_LOG_LOGIC("Setting output interface index " << route.GetOutputInterface(j));
+                                    mrtentry->SetOutputTtl(route.GetOutputInterface(j), Ipv4MulticastRoute::MAX_TTL - 1);
+                                }
                             }
+                            return mrtentry;
                         }
-                        return mrtentry;
                     }
                 }
             }
@@ -382,11 +437,11 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
             NS_ASSERT(m_ipv4 == 0);
             NS_LOG_DEBUG("Created aimf::RoutingProtocol");
             m_helloTimer.SetFunction(&RoutingProtocol::HelloTimerExpire, this);
-            
+
 
             m_packetSequenceNumber = AIMF_MAX_SEQ_NUM;
             m_messageSequenceNumber = AIMF_MAX_SEQ_NUM;
-            
+
 
 
 
@@ -398,7 +453,9 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
         void RoutingProtocol::DoDispose() {
             m_ipv4 = 0;
 
+
             m_table.clear();
+            m_state.ClearTimer();
 
             for (std::map< Ptr<Socket>, Ipv4InterfaceAddress >::iterator iter = m_socketAddresses.begin();
                     iter != m_socketAddresses.end(); iter++) {
@@ -436,9 +493,17 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
             NS_ASSERT(m_ipv4 != 0);
             // Check if input device supports IP 
             NS_ASSERT(m_ipv4->GetInterfaceForDevice(idev) >= 0);
-
-
             if (header.GetDestination().IsMulticast()) {
+                if (!m_state.WillingnessOk(m_willingness)) {
+                    if (m_netdevice.find(m_ipv4->GetInterfaceForDevice(idev)) != m_netdevice.end()) {
+                        PartitionTimerExpire(header.GetDestination(), true);
+                        NS_LOG_DEBUG("Node " << m_mainAddress << ": Spotted multicast group (" << header.GetDestination() << "," << header.GetSource() << "). InputInterface was: " << m_ipv4->GetAddress(m_ipv4->GetInterfaceForDevice(idev), 0).GetLocal());
+
+                    }
+                    return false;
+                }
+
+
                 NS_LOG_LOGIC("Multicast destination");
                 Ptr<Ipv4MulticastRoute> mrtentry = LookupStatic(header.GetSource(),
                         header.GetDestination(), m_ipv4->GetInterfaceForDevice(idev));
@@ -446,8 +511,9 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
                 if (mrtentry) {
 
                     NS_LOG_LOGIC("Multicast rute ok");
+
                     mcb(mrtentry, p, header);
-                    NS_LOG_DEBUG("Packet routed with destination: " << header.GetDestination() << " and source: " << header.GetSource() << " . It has a TTl of " << int (header.GetTtl()));
+                    NS_LOG_DEBUG("Packet routed with destination: " << header.GetDestination() << " and source: " << header.GetSource() << " . It has a TTl of " << int (header.GetTtl()) << "---------------------------------------------------------------------------------------------");
                     return true;
                 } else {
                     NS_LOG_LOGIC("Multicast rute er ikke funnet");
@@ -523,16 +589,24 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
         }
 
         void RoutingProtocol::ChangeWillingness(uint8_t will) {
+
+            if (m_state.WillingnessOk(will)) {
+                Simulator::Cancel(timerForPartition);
+            }
+
             m_willingness = will;
+            SendHello();
         }
 
         void RoutingProtocol::DoInitialize() {
             Ipv4Address loopback("127.0.0.1");
+            m_lastWillingness = m_willingness;
+            isSleep = false;
             NS_LOG_DEBUG("MainAddress " << m_mainAddress);
             if (m_mainAddress == Ipv4Address()) {
 
                 for (uint32_t i = 0; i < m_ipv4->GetNInterfaces(); i++) {
-                    
+
                     // Use primary address, if multiple
                     Ipv4Address addr = m_ipv4->GetAddress(i, 0).GetLocal();
                     NS_LOG_DEBUG("One of the node's addresses: " << addr);
@@ -545,7 +619,7 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
                 NS_ASSERT(m_mainAddress != Ipv4Address());
             }
 
-            NS_LOG_DEBUG("Starting AIMF on node " << m_mainAddress);
+
 
 
 
@@ -555,9 +629,6 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
                 if (addr == loopback)
                     continue;
 
-                if (addr != m_mainAddress) {                  
-                    continue;
-                }
 
                 if (m_interfaceExclusions.find(i) != m_interfaceExclusions.end())
                     continue;
@@ -572,9 +643,11 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
                     NS_FATAL_ERROR("Failed to bind() AIMF socket " << addr);
                 }
                 socket->BindToNetDevice(m_ipv4->GetNetDevice(i));
-                m_socketAddresses[socket] = m_ipv4->GetAddress(i, 0);
-                NS_LOG_DEBUG("One of the node's addresses which will be used to send hellos: " << m_ipv4->GetAddress(i, 0).GetLocal()<< " : "<< m_ipv4->GetNetDevice(i+1)->GetAddress() );
 
+                m_socketAddresses[socket] = m_ipv4->GetAddress(i, 0);
+                NS_LOG_DEBUG("One of the node's addresses which will be used to send hellos: " << m_ipv4->GetAddress(i, 0).GetLocal() << " .");
+                m_mainAddress = m_ipv4->GetAddress(i, 0).GetLocal();
+                NS_LOG_DEBUG("Starting AIMF on node " << m_mainAddress);
                 canRunAimf = true;
             }
 
@@ -585,8 +658,6 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
                 NS_LOG_DEBUG("AIMF on node " << m_mainAddress << " started");
             }
         }
-
-        
 
         void
         RoutingProtocol::AssociationTupleTimerExpire(Ipv4Address advertiser, Ipv4Address group, Ipv4Address source) {
@@ -606,6 +677,9 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
         void
         RoutingProtocol::RemoveAssociationTuple(const AssociationTuple &tuple) {
             m_state.EraseAssociationTuple(tuple);
+
+            //RemoveEntry(tuple.group);
+
         }
 
         void
@@ -670,6 +744,10 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
             m_interfaceExclusions = exceptions;
         }
 
+        void RoutingProtocol::SetNetdevicelistener(std::set<uint32_t> listen) {
+            m_netdevice = listen;
+        }
+
         void
         RoutingProtocol::AddNeigbour(NeighborTuple tuple) {
 
@@ -685,7 +763,7 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
             if (tuple != NULL) {
                 NS_LOG_DEBUG(Simulator::Now().GetSeconds()
                         << "s AIMF node " << m_mainAddress
-                        << " updating " << tuple->neighborMainAddr << "'s expiration time from " << tuple->expirationTime.GetSeconds() << " to " << ((Time)now + msg.GetVTime()).GetSeconds());
+                        << " updating " << tuple->neighborMainAddr << "'s expiration time from " << tuple->expirationTime.GetSeconds() << " to " << ((Time) now + msg.GetVTime()).GetSeconds());
                 tuple->expirationTime = now + msg.GetVTime();
                 tuple->willingness = msg.GetHello().willingness;
 
@@ -695,7 +773,7 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
 
 
                 AddNeigbour(nb_tuple);
-                //nb_tuple.expirationTime
+
 
                 NS_LOG_DEBUG(Simulator::Now().GetSeconds()
                         << "s AIMF node " << m_mainAddress
@@ -712,13 +790,23 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
             NS_LOG_DEBUG(Simulator::Now().GetSeconds()
                     << "s AIMF node " << m_mainAddress
                     << " erasing node " << adress);
-            m_state.EraseNeighborTuple(adress);
+            NeighborTuple *tuple = m_state.FindNeighborTuple(adress);
+            if (tuple == NULL) {
+                return;
+            }
+            if (tuple->expirationTime < Simulator::Now()) {
+                m_state.EraseNeighborTuple(adress);
+            } else {
+                m_events.Track(Simulator::Schedule(DELAY(tuple->expirationTime), &RoutingProtocol::RemoveNeighborset, this, tuple->neighborMainAddr));
+            }
+
         }
 
         void
         RoutingProtocol::Clear() {
             NS_LOG_FUNCTION_NOARGS();
             m_table.clear();
+
         }
 
         void
@@ -736,6 +824,9 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
 
             NS_ASSERT(m_ipv4);
 
+
+
+
             Ipv4MulticastRoutingTableEntry &entry = m_table[group];
 
             entry = entry.CreateMulticastRoute(source, group, inputInterface, outputInterfaces);
@@ -750,29 +841,31 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
 
             Clear();
 
-            std::vector<uint32_t> outint;
-            outint.push_back(2);
+
+            std::vector<uint32_t> outint(m_netdevice.size() - 1);
+            std::copy(m_netdevice.begin(), m_netdevice.end(), std::back_inserter(outint));
             const Associations &localHmaAssociations = m_state.GetAssociations();
             for (Associations::const_iterator assocIterator = localHmaAssociations.begin();
                     assocIterator != localHmaAssociations.end(); assocIterator++) {
                 Association const &localHmaAssoc = *assocIterator;
                 AddEntry(localHmaAssoc.group, localHmaAssoc.source, 1, outint);
-                NS_LOG_DEBUG("Node " << m_mainAddress << ": Adding local (" << localHmaAssoc.group << "," << localHmaAssoc.source << ") pair to routing table. ");
+                NS_LOG_DEBUG("Node " << m_mainAddress << ": Adding local (" << localHmaAssoc.group << "," << localHmaAssoc.source << ") pair to routing table. OuputInterface is: " << m_ipv4->GetAddress(outint.front(), 0).GetLocal() << " and Input is: " << m_ipv4->GetAddress(1, 0).GetLocal());
             }
 
-            outint.clear();
-            outint.push_back(2);
+
             const AssociationSet &localHmaAssociationSets = m_state.GetAssociationSet();
             for (AssociationSet::const_iterator assocSetIterator = localHmaAssociationSets.begin();
                     assocSetIterator != localHmaAssociationSets.end(); assocSetIterator++) {
                 AssociationTuple const &localHmaAssocSet = *assocSetIterator;
-                AddEntry(localHmaAssocSet.group, localHmaAssocSet.source, this->m_ipv4->GetInterfaceForPrefix(localHmaAssocSet.advertiser, "255.255.255.0"), outint);
-                NS_LOG_DEBUG("Node " << m_mainAddress << ": Adding adjacent (" << localHmaAssocSet.group << "," << localHmaAssocSet.source << ") pair to routing table. ");
+                AddEntry(localHmaAssocSet.group, localHmaAssocSet.source, 1, outint);
+                NS_LOG_DEBUG("Node " << m_mainAddress << ": Adding adjacent (" << localHmaAssocSet.group << "," << localHmaAssocSet.source << ") pair to routing table. OuputInterface is: " << m_ipv4->GetAddress(outint.front(), 0).GetLocal() << " and Input is: " << m_ipv4->GetAddress(1, 0).GetLocal());
             }
 
 
 
             NS_LOG_DEBUG("Node " << m_mainAddress << ": RoutingTableComputation end.");
+
+
 
         }
 
@@ -801,7 +894,7 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
                 aimf::MessageHeader::Hello::Association assoc = {it->group, it->source};
                 associations.push_back(assoc);
             }
-          
+
 
 
             NS_LOG_DEBUG("AIMF HELLO message size: " << int (msg.GetSerializedSize()));
@@ -825,7 +918,7 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
                     m_socketAddresses.begin(); i != m_socketAddresses.end(); i++) {
                 Ipv4Address mcast = Ipv4Address(AIMF_MCAST_ADR);
                 NS_LOG_DEBUG("Using socket with  " << i->second.GetLocal() << " as src address.");
-                
+
                 i->first->SendTo(packet, 0, InetSocketAddress(mcast, AIMF_PORT_NUMBER));
             }
         }
@@ -842,19 +935,10 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
             NS_LOG_DEBUG("Aimf node " << m_mainAddress << ": SendMessage");
 
 
-
-
             Ptr<Packet> p = Create<Packet> ();
             (*p).AddHeader(message);
             packet->AddAtEnd(p);
             SendPacket(packet);
-
-
-
-
-
-
-
 
 
         }
@@ -872,7 +956,7 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
                     return;
                 }
             }
-            // If the tuple does not already exist, add it to the list of local HNA associations.
+            // If the tuple does not already exist, add it to the list of local HMA associations.
             NS_LOG_INFO("Adding HMA association for multicast group (" << group << "," << source << ").");
 
             m_state.InsertAssociation((Association) {
@@ -885,6 +969,10 @@ NS_LOG_DEBUG("src address= " <<m_ipv4->GetAddress(oif->GetIfIndex()+1, 0).GetLoc
         RoutingProtocol::HelloTimerExpire() {
             SendHello();
             m_helloTimer.Schedule(m_helloInterval);
+        }
+
+        void RoutingProtocol::SleepForwarding(bool sleep) {
+            isSleep = sleep;
         }
     }
 }

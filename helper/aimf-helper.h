@@ -12,8 +12,7 @@
 
 namespace ns3 {
 
-    class AimfHelper : public Ipv4RoutingHelper 
-    {
+    class AimfHelper : public Ipv4RoutingHelper {
     public:
         /**
          * Create an AimfHelper that makes life easier for people who want to install
@@ -42,6 +41,8 @@ namespace ns3 {
          * This method allows the user to specify an interface on which AIMF is not to be installed on
          */
         void ExcludeInterface(Ptr<Node> node, uint32_t interface);
+
+        void SetListenNetDevice(Ptr<Node> node, uint32_t interface);
 
         /**
          * \param node the node on which the routing protocol will run
@@ -81,7 +82,7 @@ namespace ns3 {
         ObjectFactory m_agentFactory; //!< Object factory
 
         std::map< Ptr<Node>, std::set<uint32_t> > m_interfaceExclusions; //!< container of interfaces excluded from AIMF operations
-
+        std::map< Ptr<Node>, std::set<uint32_t> > m_netdevices;
     };
 
 }

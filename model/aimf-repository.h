@@ -14,6 +14,8 @@
 
 #include "ns3/ipv4-address.h"
 #include "ns3/nstime.h"
+#include "ns3/core-module.h"
+#include "ns3/network-module.h"
 
 namespace ns3 {
     namespace aimf {
@@ -118,14 +120,16 @@ Time expirationTime;
                     << ")";
             return os;
         }
+        
 
 
 
         typedef std::vector<NeighborTuple> NeighborSet; ///< Neighbor Set type.
-
+        typedef std::map<Ipv4Address,Time> TimerMap;
         typedef std::vector<IfaceAssocTuple> IfaceAssocSet; ///< Interface Association Set type.
         typedef std::vector<AssociationTuple> AssociationSet; ///< Association Set type.
         typedef std::vector<Association> Associations; ///< Association Set type.
+        
 
 
     }

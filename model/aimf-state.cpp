@@ -1,5 +1,7 @@
 #include "aimf-state.h"
 #include "ns3/aimf-state.h"
+#include "ns3/socket.h"
+#include "ns3/udp-socket.h"
 
 
 namespace ns3 {
@@ -8,6 +10,27 @@ namespace ns3 {
         void
         AimfState::InsertAssociationTuple(const AssociationTuple &tuple) {
             m_associationSet.push_back(tuple);
+        }
+
+        Time* AimfState::FindTimer(Ipv4Address const &mainAddr) {
+            for (TimerMap::iterator it = m_timerMap.begin(); it != m_timerMap.end(); it++) {
+                if (it->first == mainAddr) {
+                    return &(it->second);
+                }
+            }
+            return NULL;
+        }
+
+        void AimfState::ClearTimer() {
+            m_timerMap.clear();
+        }
+
+        void AimfState::AddTimer(Ipv4Address const &mainAddr, Time &time) {
+            m_timerMap.insert(std::make_pair<Ipv4Address, Time>(mainAddr, time));
+        }
+
+        void AimfState::EraseTimer(Ipv4Address const &mainAddr) {
+            m_timerMap.erase(mainAddr);
         }
 
         /********** Neighbor Set Manipulation **********/
@@ -45,14 +68,61 @@ namespace ns3 {
         bool
         AimfState::WillingnessOk(uint8_t const will) {
             uint8_t k = 0;
-           
-            for (NeighborSet::iterator it = m_neighborSet.begin();
+
+            for (NeighborSet::const_iterator it = m_neighborSet.begin();
                     it != m_neighborSet.end(); it++) {
 
                 if (it->willingness > k)
                     k = it->willingness;
             }
             return (will >= k);
+        }
+
+        int
+        AimfState::WillingnessMaxInSystem() {
+            uint8_t k = 0;
+
+            for (NeighborSet::iterator it = m_neighborSet.begin();
+                    it != m_neighborSet.end(); it++) {
+
+                if (it->willingness > k)
+                    k = it->willingness;
+            }
+            return k;
+        }
+
+        uint8_t AimfState::WillingnessNextMaxInSystem() {
+            uint8_t max, secmax;
+            if(m_neighborSet.size()<2){
+                return ((uint8_t)WillingnessMaxInSystem());
+            }
+
+            if (m_neighborSet.at(0).willingness > m_neighborSet.at(1).willingness) {
+                max = m_neighborSet.at(0).willingness;
+                secmax = m_neighborSet.at(1).willingness;
+            } else {
+                secmax = m_neighborSet.at(0).willingness;
+                max = m_neighborSet.at(1).willingness;
+            }
+            if(m_neighborSet.size()<3){
+                return (secmax);
+            }
+
+            int i = 0;
+            for (NeighborSet::iterator it = m_neighborSet.begin();
+                    it != m_neighborSet.end(); it++) {
+
+                if (i < 2) {
+                    i++;
+                    continue;
+                }
+                if (it->willingness > max) {
+                    secmax = max;
+                    max = it->willingness;
+                } else if (it->willingness > secmax && it->willingness != max)
+                    secmax = it->willingness;
+            }
+            return secmax;
         }
 
         void

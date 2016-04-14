@@ -16,18 +16,18 @@
 
 // Network topology
 //
-//                         Lan1
-//                     ================(cable or wireless)
-//                      |    |   |   |
-//       n0   n1   n2   n3   n4  n5  n6 
-//       |    |    |    |    |
-//       ======================
-//           Lan0
+//      LAN2                  Lan1/WLAN       
+//      ===            =====================(cable or wireless. Do your choosing with the wifiok (bool) value.)
+//       |              |    |   |   |   |
+//       n0   n1   n2   n3   n4  n5  n6  n7  n8  n9
+//       |    |    |    |    |   |           |   |
+//       ======================  =====================
+//           Lan0                   LAN2
 //
-// - Multicast source is at node n0;
-// - Multicast forwarded by node n2 onto LAN1;
-// - Nodes n0, n1, n2, n3, and n4 receive the multicast frame.
-// - Node n4 listens for the data 
+// - Multicast source is at node n1;
+// - Multicast forwarded by node n3, n4 or n5 onto LAN1/WLAN1;
+// - Bidirectional multicast forwarding at node n0 in regard to AIMF datagram forwarding;
+
 
 #include <iostream>
 #include <fstream>
@@ -76,10 +76,11 @@ main(int argc, char *argv[]) {
 
     NS_LOG_INFO("Create nodes.");
     NodeContainer c;
-    c.Create(7);
+    c.Create(10);
     // We will later want two subcontainers of these nodes, for the two LANs
     NodeContainer c0 = NodeContainer(c.Get(0), c.Get(1), c.Get(2), c.Get(3), c.Get(4));
-    NodeContainer c1 = NodeContainer(c.Get(3), c.Get(4), c.Get(5), c.Get(6));
+    NodeContainer c1 = NodeContainer(c.Get(3), c.Get(4), c.Get(5), c.Get(6), c.Get(7));
+    NodeContainer c2 = NodeContainer(c.Get(0), c.Get(8), c.Get(9), c.Get(5));
 
     NS_LOG_INFO("Build Topology.");
     CsmaHelper csma;
@@ -87,7 +88,8 @@ main(int argc, char *argv[]) {
     csma.SetChannelAttribute("Delay", TimeValue(MilliSeconds(2)));
 
     // We will use these NetDevice containers later, for IP addressing
-    NetDeviceContainer nd0 = csma.Install(c0); // First LAN
+    NetDeviceContainer nd0 = csma.Install(c0);
+    NetDeviceContainer nd2 = csma.Install(c2); // First LAN
 
 
     WifiHelper wifi;
@@ -129,7 +131,7 @@ main(int argc, char *argv[]) {
     InternetStackHelper internet3;
 
     if (wifiok) {
-        nd1 = wifi.Install(wifiPhy, wifiMac, c1); // Second LAN
+        nd1 = wifi.Install(wifiPhy, wifiMac, c1); // WLAN
         MobilityHelper mobility;
         Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
         positionAlloc->Add(Vector(0.0, 0.0, 0.0));
@@ -145,24 +147,28 @@ main(int argc, char *argv[]) {
         OlsrHelper olsr2;
         olsr.ExcludeInterface(c.Get(3), 1);
         olsr.ExcludeInterface(c.Get(4), 1);
+        olsr.ExcludeInterface(c.Get(5), 2);
         aimf.ExcludeInterface(c.Get(3), 2);
         aimf.ExcludeInterface(c.Get(4), 2);
-        aimf.ExcludeInterface(c.Get(3), 0);
-        aimf.ExcludeInterface(c.Get(4), 0);
+        aimf.ExcludeInterface(c.Get(5), 1);
+        aimf.SetListenNetDevice(c.Get(3),2);
+        aimf.SetListenNetDevice(c.Get(4),2);
+        aimf.SetListenNetDevice(c.Get(5),1);
+        
         list.Add(staticRouting, 10);
         list.Add(aimf, 12);
         list.Add(olsr, 11);
         list2.Add(staticRouting2, 0);
         list2.Add(olsr2, 9);
 
-
-        internet.Install(NodeContainer(c.Get(0), c.Get(1), c.Get(2)));
+       
+        internet.Install(NodeContainer(c.Get(0), c.Get(1), c.Get(2), c.Get(8), c.Get(9)));
 
 
         internet2.SetRoutingHelper(list);
-        internet2.Install(NodeContainer(c.Get(3), c.Get(4)));
+        internet2.Install(NodeContainer(c.Get(3), c.Get(4), c.Get(5)));
         internet3.SetRoutingHelper(list2);
-        internet3.Install(NodeContainer(c.Get(5), c.Get(6)));
+        internet3.Install(NodeContainer(c.Get(6), c.Get(7)));
     } else {
         nd1 = csma.Install(c1); // Second LAN
         NS_LOG_INFO("Add IP Stack.");
@@ -180,6 +186,8 @@ main(int argc, char *argv[]) {
     ipv4Addr.Assign(nd0);
     ipv4Addr.SetBase("10.1.2.0", "255.255.255.0");
     ipv4Addr.Assign(nd1);
+    ipv4Addr.SetBase("10.1.3.0", "255.255.255.0");
+    ipv4Addr.Assign(nd2);
 
 
     NS_LOG_INFO("Configure multicasting.");
@@ -230,10 +238,17 @@ main(int argc, char *argv[]) {
 
     Ptr<Node> sender = c.Get(0);
     Ptr<NetDevice> senderIf = nd0.Get(0);
-    multicast.SetDefaultMulticastRoute(sender, senderIf);
+    
+    multicast.AddMulticastRoute(c.Get(0),(Ipv4Address("").GetAny()), Ipv4Address("225.1.2.4"), senderIf, NetDeviceContainer(nd2.Get(0)));
+    multicast.AddMulticastRoute(c.Get(0),(Ipv4Address("").GetAny()), Ipv4Address("225.1.2.5"), senderIf, NetDeviceContainer(nd2.Get(0)));
+    multicast.AddMulticastRoute(c.Get(0),(Ipv4Address("").GetAny()), Ipv4Address("224.0.0.12"), senderIf, NetDeviceContainer(nd2.Get(0)));
+    multicast.AddMulticastRoute(c.Get(0),(Ipv4Address("").GetAny()), Ipv4Address("224.0.0.12"), nd2.Get(0), NetDeviceContainer(senderIf));
+   
     Ptr<Node> sender2 = c.Get(1);
     Ptr<NetDevice> senderIf2 = nd0.Get(1);
     multicast.SetDefaultMulticastRoute(sender2, senderIf2);
+
+
 
 
     NS_LOG_INFO("Create Applications.");
@@ -246,7 +261,7 @@ main(int argc, char *argv[]) {
     onoff.SetConstantRate(DataRate("255b/s"));
     onoff.SetAttribute("PacketSize", UintegerValue(128));
 
-    ApplicationContainer srcC = onoff.Install(c0.Get(0));
+    ApplicationContainer srcC = onoff.Install(c0.Get(1));
 
     OnOffHelper onoff2("ns3::UdpSocketFactory",
             Address(InetSocketAddress(multicastGroup2, multicastPort)));
@@ -290,9 +305,11 @@ main(int argc, char *argv[]) {
     NS_LOG_INFO("Run Simulation.");
 
     Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 1);
-    Simulator::Schedule(Seconds(500.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 5);
+    Simulator::Schedule(Seconds(750.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 5);
+    Simulator::Schedule(Seconds(2.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw2, 2);
+    Simulator::Schedule(Seconds(300.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw2, 4);
     Simulator::Schedule(Seconds(3.0), &aimf::RoutingProtocol::AddHostMulticastAssociation, aimf_Gw, multicastGroup, multicastSource);
-    Simulator::Schedule(Seconds(800.0), &aimf::RoutingProtocol::AddHostMulticastAssociation, aimf_Gw2, multicastGroup2, multicastSource2);
+    Simulator::Schedule(Seconds(500.0), &aimf::RoutingProtocol::AddHostMulticastAssociation, aimf_Gw2, multicastGroup2, multicastSource2);
 
     Simulator::Stop(Seconds(1001.0));
     Simulator::Run();

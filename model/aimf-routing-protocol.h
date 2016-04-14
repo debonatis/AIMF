@@ -67,8 +67,8 @@ namespace ns3 {
             //             * \return the number of stream indices assigned by this model
             //             */
             int64_t AssignStreams(int64_t stream);
-          
-           
+
+
             //
             //            /**
             //             * TracedCallback signature for routing table computation.
@@ -80,12 +80,18 @@ namespace ns3 {
             //
         private:
             std::set<uint32_t> m_interfaceExclusions;
+            std::set<uint32_t> m_netdevice;
             Ptr<Ipv4StaticRouting> m_routingTableAssociation;
+            volatile bool isSleep;
+            
             //
         public:
+            void
+            PartitionTimerExpire(Ipv4Address group,bool spotted);
+            void RecvGroups(Ptr<Socket> socket);
 
             // Willingness for forwarding packets on behalf of other nodes.
-            uint8_t m_willingness;
+            volatile uint8_t m_willingness;
 
             std::set<uint32_t> GetInterfaceExclusions() const {
                 return m_interfaceExclusions;
@@ -93,14 +99,14 @@ namespace ns3 {
             void AddNeigbour(NeighborTuple tuple);
             void RemoveNeighborset(Ipv4Address adress);
             void SetInterfaceExclusions(std::set<uint32_t> exceptions);
-
+            void SetNetdevicelistener(std::set<uint32_t> listen);
 
             void AddHostMulticastAssociation(Ipv4Address group, Ipv4Address source);
 
-            void RemoveHostNetworkAssociation(Ipv4Address group, Ipv4Address source);
 
 
-            void SetRoutingTableAssociation(Ptr<Ipv4StaticRouting> routingTable);
+
+            void SleepForwarding(bool sleep);
             void ChangeWillingness(uint8_t will);
 
             Ptr<const Ipv4StaticRouting> GetRoutingTableAssociation() const;
@@ -110,7 +116,8 @@ namespace ns3 {
         private:
             std::map<Ipv4Address, Ipv4MulticastRoutingTableEntry> m_table; ///< Data structure for the routing table.
 
-
+            volatile bool isFirstSpoot;
+            volatile uint8_t m_lastWillingness;
             EventGarbageCollector m_events;
 
             // Packets sequence number counter.
@@ -128,6 +135,9 @@ namespace ns3 {
             AimfState m_state;
             //
             Ptr<Ipv4> m_ipv4;
+
+            EventId timerForPartition;
+
             //
             void Clear();
             //
@@ -221,25 +231,26 @@ namespace ns3 {
 
 
             void RoutingTableComputation(); //ok
-           
+
 
             Timer m_helloTimer;
             void HelloTimerExpire();
 
-            
+
+
 
             // A list of pending messages which are buffered awaiting for being sent.
-            
-            
 
-           
 
-            
+
+
+
+
             void SendMessage(const MessageHeader &message); //ok
             void SendHello(); //ok
             void AddAssociationTuple(const AssociationTuple &tuple);
             void RemoveAssociationTuple(const AssociationTuple &tuple);
-            
+
 
 
 
@@ -250,7 +261,7 @@ namespace ns3 {
 
             void PopulateNeighborSet(const aimf::MessageHeader &msg,
                     const Time & now);
-           
+
             /// Check that address is one of my interfaces
             bool IsMyOwnAddress(const Ipv4Address & a) const;
 
@@ -259,8 +270,8 @@ namespace ns3 {
 
             std::map< Ptr<Socket>, Ipv4InterfaceAddress > m_socketAddresses;
 
-            
-            
+
+
             TracedCallback <uint32_t> m_routingTableChanged;
 
             /// Provides uniform random variables.
