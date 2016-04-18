@@ -83,11 +83,11 @@ namespace ns3 {
             std::set<uint32_t> m_netdevice;
             Ptr<Ipv4StaticRouting> m_routingTableAssociation;
             volatile bool isSleep;
-            
+
             //
         public:
             void
-            PartitionTimerExpire(Ipv4Address group,bool spotted);
+            PartitionTimerExpire(Ipv4Address group, bool spotted);
             void RecvGroups(Ptr<Socket> socket);
 
             // Willingness for forwarding packets on behalf of other nodes.
@@ -270,7 +270,10 @@ namespace ns3 {
 
             std::map< Ptr<Socket>, Ipv4InterfaceAddress > m_socketAddresses;
 
-
+            TracedCallback <const PacketHeader &,
+            const MessageList &> m_rxPacketTrace;
+            TracedCallback <const PacketHeader &,
+            const MessageList &> m_txPacketTrace;
 
             TracedCallback <uint32_t> m_routingTableChanged;
 

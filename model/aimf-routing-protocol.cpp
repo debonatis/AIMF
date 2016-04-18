@@ -225,11 +225,6 @@ namespace ns3 {
 
                 // If the message has been processed it must not be processed again
 
-
-
-
-
-
                 switch (messageHeader.GetMessageType()) {
                     case aimf::MessageHeader::HELLO_MESSAGE:
                         NS_LOG_DEBUG(Simulator::Now().GetSeconds()
