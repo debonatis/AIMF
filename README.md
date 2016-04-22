@@ -47,7 +47,7 @@ Attributes
 ==========
 
 The method ``ns3::AimfHelper::Set ()`` can be used
-to set OLSR attributes.  These include HelloInterval, olsrPollIntervall,
+to set AIMF attributes.  These include HelloInterval, olsrPollIntervall,
 and Willingness.  
 
 Output
@@ -60,9 +60,9 @@ Advanced Usage
 
 To be able to inject routes and (S,G) pair/s (Simulating IGMP) you have to make yourselves a reference to the running aimf instance of choice.
 
-    Ptr<Ipv4> stack = c.Get(3)->GetObject<Ipv4> ();
+     Ptr<Ipv4> stack = c.Get(3)->GetObject<Ipv4> ();
      Ptr<Ipv4RoutingProtocol> rp_Gw = (stack->GetRoutingProtocol());
-    Ptr<Ipv4ListRouting> lrp_Gw = DynamicCast<Ipv4ListRouting> (rp_Gw); 
+     Ptr<Ipv4ListRouting> lrp_Gw = DynamicCast<Ipv4ListRouting> (rp_Gw); 
      Ptr<aimf::RoutingProtocol> aimf_Gw; 
      for (uint32_t i = 0; i < lrp_Gw->GetNRoutingProtocols(); i++) {
          int16_t priority; 
