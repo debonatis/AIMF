@@ -252,11 +252,6 @@ namespace ns3 {
 
 
 
-            // A list of pending messages which are buffered awaiting for being sent.
-
-
-
-
 
 
             void SendMessage(const MessageHeader &message); //ok
