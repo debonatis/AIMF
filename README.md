@@ -25,20 +25,12 @@ The model is for IPv4 only.
 * AIMF does not respond to the routing event notifications corresponding to dynamic interface up and down (``ns3::RoutingProtocol::NotifyInterfaceUp`` and ``ns3::RoutingProtocol::NotifyInterfaceDown``) or address insertion/removal ``ns3::RoutingProtocol::NotifyAddAddress`` and ``ns3::RoutingProtocol::NotifyRemoveAddress``).
 
 
-References
-==========
-
 
 Usage
 *****
 
 See examples in "src/aimf/examples".
 
-Building New Module
-===================
-
-Include this subsection only if there are special build instructions or
-platform limitations.
 
 Helpers
 =======
@@ -68,7 +60,7 @@ Advanced Usage
 
 To be able to inject routes and (S,G) pair/s (Simulating IGMP) you have to make yourselves a reference to the running aimf instance of choice.
 
-    Ptr<Ipv4> stack = c.Get(3)->GetObject<Ipv4> ();
+  ``  Ptr<Ipv4> stack = c.Get(3)->GetObject<Ipv4> ();
     Ptr<Ipv4RoutingProtocol> rp_Gw = (stack->GetRoutingProtocol());
     Ptr<Ipv4ListRouting> lrp_Gw = DynamicCast<Ipv4ListRouting> (rp_Gw);
 
@@ -87,12 +79,13 @@ To be able to inject routes and (S,G) pair/s (Simulating IGMP) you have to make 
         }
 
     }
+``
 
 Changing the willingness and injecting a (S,G) pair.
 
-Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 2);
+``Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 2);
     
-Simulator::Schedule(Seconds(3.0), &aimf::RoutingProtocol::AddHostMulticastAssociation, aimf_Gw, multicastGroup, multicastSource);
+Simulator::Schedule(Seconds(3.0), &aimf::RoutingProtocol::AddHostMulticastAssociation, aimf_Gw, multicastGroup, multicastSource);``
     
 Troubleshooting
 ===============
