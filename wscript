@@ -7,7 +7,7 @@
 #     conf.check_nonfatal(header_name='stdint.h', define_name='HAVE_STDINT_H')
 
 def build(bld):
-    module = bld.create_ns3_module('aimf', ['internet'])
+    module = bld.create_ns3_module('aimf', ['internet','olsr'])
     module.source = [
         'model/aimf-header.cpp',
         'helper/aimf-helper.cpp',

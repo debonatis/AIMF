@@ -43,13 +43,17 @@
 #include "ns3/olsr-helper.h"
 #include "ns3/olsr-routing-protocol.h"
 #include "ns3/mobility-module.h"
-#include "src/aimf/helper/aimf-helper.h"
-#include "src/aimf/model/aimf-routing-protocol.h"
 #include "ns3/stats-module.h"
+#include "ns3/netanim-module.h"
+
 
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("AimfMulticast");
+
+void RoutingTableChangeAIMF() {
+
+}
 
 int
 main(int argc, char *argv[]) {
@@ -69,6 +73,7 @@ main(int argc, char *argv[]) {
     //
     // Select DIX/Ethernet II-style encapsulation (no LLC/Snap header)
     Config::SetDefault("ns3::CsmaNetDevice::EncapsulationMode", StringValue("Dix"));
+    //    Config::Set("ns3::aimf::RoutingProtocol/HelloInterval", TimeValue(Seconds(4)));
 
     // Allow the user to override any of the defaults at
     // run-time, via command-line arguments
@@ -101,8 +106,8 @@ main(int argc, char *argv[]) {
         wifi.EnableLogComponents(); // Turn on all Wifi logging
     }
     wifi.SetStandard(WIFI_PHY_STANDARD_80211b);
-    std::string phyMode("DsssRate11Mbps");
-    double rss = -80; // -dBm
+    std::string phyMode("OfdmRate54Mbps");
+    
     YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default();
     // This is one parameter that matters when using FixedRssLossModel
     // set it to zero; otherwise, gain will be added
@@ -114,7 +119,8 @@ main(int argc, char *argv[]) {
     wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
     // The below FixedRssLossModel will cause the rss to be fixed regardless
     // of the distance between the two stations, and the transmit power
-    wifiChannel.AddPropagationLoss("ns3::FixedRssLossModel", "Rss", DoubleValue(rss));
+    double maxRange = 150;
+    wifiChannel.AddPropagationLoss("ns3::RangePropagationLossModel","MaxRange",DoubleValue(maxRange));
     wifiPhy.SetChannel(wifiChannel.Create());
 
     // Add a non-QoS upper mac, and disable rate control
@@ -137,15 +143,36 @@ main(int argc, char *argv[]) {
     if (wifiok) {
         nd1 = wifi.Install(wifiPhy, wifiMac, c1); // WLAN
         MobilityHelper mobility;
+        mobility.SetPositionAllocator("ns3::RandomDiscPositionAllocator",
+                "X", StringValue("95.0"),
+                "Y", StringValue("50.0"),
+                "Rho", StringValue("ns3::UniformRandomVariable[Min=0|Max=41]"));
+        mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel",
+                "Mode", StringValue("Time"),
+                "Time", StringValue("0.5s"),
+                "Speed", StringValue("ns3::UniformRandomVariable[Min=10|Max=100]"),
+                "Bounds", StringValue("0|190|8|150"));
+        mobility.Install(NodeContainer(c.Get(6), c.Get(7)));
+        MobilityHelper mobility2;
         Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
-        positionAlloc->Add(Vector(0.0, 0.0, 0.0));
-        positionAlloc->Add(Vector(5.0, 0.0, 0.0));
-        positionAlloc->Add(Vector(5.0, 2.0, 0.0));
-        positionAlloc->Add(Vector(0.0, 2.0, 0.0));
-        positionAlloc->Add(Vector(0.0, 2.0, 0.0));
-        mobility.SetPositionAllocator(positionAlloc);
-        mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
-        mobility.Install(c1);
+        positionAlloc->Add(Vector(140.0, 8.0, 0.0));//gw1
+        positionAlloc->Add(Vector(160.0, 8.0, 0.0));//gw2
+        positionAlloc->Add(Vector(180.0, 8.0, 0.0));//gw3
+        positionAlloc->Add(Vector(170.0, 2.0, 0.0));
+        positionAlloc->Add(Vector(145.0, 3.0, 0.0));
+        positionAlloc->Add(Vector(155.0, 3.0, 0.0));
+        positionAlloc->Add(Vector(170.0, 2.0, 0.0));
+        positionAlloc->Add(Vector(190.0, 2.0, 0.0));
+
+        mobility2.SetPositionAllocator(positionAlloc);
+        mobility2.SetMobilityModel("ns3::ConstantPositionMobilityModel");
+        NodeContainer w = NodeContainer(c.Get(3), c.Get(4), c.Get(5));
+        NodeContainer k= NodeContainer(c.Get(0), c.Get(1), c.Get(2), c.Get(8), c.Get(9));
+        w.Add(k);
+        mobility2.Install(w);
+       
+        
+       
         NS_LOG_INFO("Add IP Stack. Wireless chosen!");
         OlsrHelper olsr;
         OlsrHelper olsr2;
@@ -195,8 +222,20 @@ main(int argc, char *argv[]) {
 
     std::string probeType;
     std::string tracePath;
+    std::string probeType2;
+    std::string tracePath2;
+    std::string probeType3;
+    std::string tracePath3;
+    std::string probeType4;
+    std::string tracePath4;
     probeType = "ns3::Ipv4PacketProbe";
-    tracePath = "/NodeList/*/$ns3::Ipv4L3Protocol/Tx";
+    tracePath = "/NodeList/*/$ns3::aimf::RoutingProtocol/Tx";
+    probeType2 = "ns3::Ipv4PacketProbe";
+    tracePath2 = "/NodeList/*/$ns3::aimf::RoutingProtocol/Rx";
+    probeType3 = "ns3::Ipv4PacketProbe";
+    tracePath3 = "/NodeList/*/$ns3::aimf::RoutingProtocol/McTx";
+    probeType4 = "ns3::Ipv4PacketProbe";
+    tracePath4 = "/NodeList/*/$ns3::aimf::RoutingProtocol/McRx";
     NS_LOG_INFO("Configure multicasting.");
 
 
@@ -246,7 +285,7 @@ main(int argc, char *argv[]) {
     }
     Ipv4StaticRoutingHelper multicast;
 
-    Ipv4Address multicastSource("10.1.1.1");
+    Ipv4Address multicastSource("10.1.1.2");
     Ipv4Address multicastGroup("225.1.2.4");
     Ipv4Address multicastSource2("10.1.1.2");
     Ipv4Address multicastGroup2("225.1.2.5");
@@ -260,8 +299,8 @@ main(int argc, char *argv[]) {
 
     multicast.AddMulticastRoute(c.Get(0), (Ipv4Address("").GetAny()), Ipv4Address("225.1.2.4"), senderIf, NetDeviceContainer(nd2.Get(0)));
     multicast.AddMulticastRoute(c.Get(0), (Ipv4Address("").GetAny()), Ipv4Address("225.1.2.5"), senderIf, NetDeviceContainer(nd2.Get(0)));
-    multicast.AddMulticastRoute(c.Get(0), (Ipv4Address("").GetAny()), Ipv4Address("224.0.0.12"), senderIf, NetDeviceContainer(nd2.Get(0)));
-    multicast.AddMulticastRoute(c.Get(0), (Ipv4Address("").GetAny()), Ipv4Address("224.0.0.12"), nd2.Get(0), NetDeviceContainer(senderIf));
+    multicast.AddMulticastRoute(c.Get(0), (Ipv4Address("").GetAny()), Ipv4Address("230.0.0.30"), senderIf, NetDeviceContainer(nd2.Get(0)));
+    multicast.AddMulticastRoute(c.Get(0), (Ipv4Address("").GetAny()), Ipv4Address("230.0.0.30"), nd2.Get(0), NetDeviceContainer(senderIf));
 
     Ptr<Node> sender2 = c.Get(1);
     Ptr<NetDevice> senderIf2 = nd0.Get(1);
@@ -277,37 +316,41 @@ main(int argc, char *argv[]) {
 
     OnOffHelper onoff("ns3::UdpSocketFactory",
             Address(InetSocketAddress(multicastGroup, multicastPort)));
-    onoff.SetConstantRate(DataRate("1000b/s"));
-    onoff.SetAttribute("PacketSize", UintegerValue(128));
+    onoff.SetConstantRate(DataRate("15kb/s"));
+    onoff.SetAttribute("PacketSize", UintegerValue(1400));
 
 
     ApplicationContainer srcC = onoff.Install(c0.Get(1));
 
     OnOffHelper onoff2("ns3::UdpSocketFactory",
-            Address(InetSocketAddress(multicastGroup2, multicastPort)));
-    onoff2.SetConstantRate(DataRate("250b/s"));
-    onoff2.SetAttribute("PacketSize", UintegerValue(128));
+            Address(InetSocketAddress(multicastGroup2, 1336)));
+    onoff2.SetConstantRate(DataRate("10kb/s"));
+    onoff2.SetAttribute("PacketSize", UintegerValue(100));
 
     ApplicationContainer srcC2 = onoff2.Install(c0.Get(1));
 
 
     srcC.Start(Seconds(1.));
-    srcC.Stop(Seconds(1000.));
+    srcC.Stop(Seconds(499.));
     srcC2.Start(Seconds(1.));
-    srcC2.Stop(Seconds(1000.));
+    srcC2.Stop(Seconds(499.));
 
 
     PacketSinkHelper sink("ns3::UdpSocketFactory",
             InetSocketAddress(Ipv4Address::GetAny(), multicastPort));
     ApplicationContainer sinkC = sink.Install(c1.Get(3));
     sinkC.Start(Seconds(1.0));
-    sinkC.Stop(Seconds(1000.0));
+    sinkC.Stop(Seconds(100.0));
 
     NS_LOG_INFO("Configure Tracing.");
     //
     // Configure tracing of all enqueue, dequeue, and NetDevice receive events.
     // Ascii trace output will be sent to the file "csma-multicast.tr"
     //
+    AnimationInterface anim("animation.xml");
+    anim.SetMobilityPollInterval(Seconds(1));
+    anim.EnablePacketMetadata(true);
+
     AsciiTraceHelper ascii;
     csma.EnableAsciiAll(ascii.CreateFileStream("csma-multicast.tr"));
 
@@ -322,14 +365,32 @@ main(int argc, char *argv[]) {
 
     // Use GnuplotHelper to plot the packet byte count over time
     GnuplotHelper plotHelper;
+    GnuplotHelper plotHelper2;
+    GnuplotHelper plotHelper3;
+    GnuplotHelper plotHelper4;
+
+
 
     // Configure the plot.  The first argument is the file name prefix
     // for the output files generated.  The second, third, and fourth
     // arguments are, respectively, the plot title, x-axis, and y-axis labels
     plotHelper.ConfigurePlot("aimf-packet-byte-count",
-            "Packet Byte Count vs. Time",
+            "Hello Packet Byte Count Sent vs. Time",
             "Time (Seconds)",
             "Packet Byte Count");
+    plotHelper2.ConfigurePlot("aimf-packet-byte-count2",
+            "Hello Packet Byte Count Received vs. Time",
+            "Time (Seconds)",
+            "Packet Byte Count");
+    plotHelper3.ConfigurePlot("aimf-packet-byte-count3",
+            "Multicast Packet Byte Count Forwarded vs. Time",
+            "Time (Seconds)",
+            "Packet Byte Count");
+    plotHelper4.ConfigurePlot("aimf-packet-byte-count4",
+            "Multicast Packet Byte Count Received vs. Time",
+            "Time (Seconds)",
+            "Packet Byte Count");
+
 
     // Specify the probe type, trace source path (in configuration namespace), and
     // probe output trace source ("OutputBytes") to plot.  The fourth argument
@@ -340,47 +401,86 @@ main(int argc, char *argv[]) {
             "OutputBytes",
             "Packet Byte Count",
             GnuplotAggregator::KEY_BELOW);
+    plotHelper2.PlotProbe(probeType2,
+            tracePath2,
+            "OutputBytes",
+            "Packet Byte Count",
+            GnuplotAggregator::KEY_BELOW);
+    plotHelper3.PlotProbe(probeType3,
+            tracePath3,
+            "OutputBytes",
+            "Packet Byte Count",
+            GnuplotAggregator::KEY_BELOW);
+    plotHelper4.PlotProbe(probeType4,
+            tracePath4,
+            "OutputBytes",
+            "Packet Byte Count",
+            GnuplotAggregator::KEY_BELOW);
 
     // Use FileHelper to write out the packet byte count over time
     FileHelper fileHelper;
+    FileHelper fileHelper2;
+    FileHelper fileHelper3;
+    FileHelper fileHelper4;
 
     // Configure the file to be written, and the formatting of output data.
     fileHelper.ConfigureFile("aimf-packet-byte-count",
             FileAggregator::FORMATTED);
+    fileHelper2.ConfigureFile("aimf-packet-byte-count2",
+            FileAggregator::FORMATTED);
+    fileHelper3.ConfigureFile("aimf-packet-byte-count3",
+            FileAggregator::FORMATTED);
+    fileHelper4.ConfigureFile("aimf-packet-byte-count4",
+            FileAggregator::FORMATTED);
 
     // Set the labels for this formatted output file.
     fileHelper.Set2dFormat("Time (Seconds) = %.3e\tPacket Byte Count = %.0f");
+    fileHelper2.Set2dFormat("Time (Seconds) = %.3e\tPacket Byte Count = %.0f");
+    fileHelper3.Set2dFormat("Time (Seconds) = %.3e\tPacket Byte Count = %.0f");
+    fileHelper4.Set2dFormat("Time (Seconds) = %.3e\tPacket Byte Count = %.0f");
 
     // Specify the probe type, trace source path (in configuration namespace), and
     // probe output trace source ("OutputBytes") to write.
     fileHelper.WriteProbe(probeType,
             tracePath,
             "OutputBytes");
+    fileHelper2.WriteProbe(probeType2,
+            tracePath2,
+            "OutputBytes");
+    fileHelper3.WriteProbe(probeType3,
+            tracePath3,
+            "OutputBytes");
+    fileHelper4.WriteProbe(probeType4,
+            tracePath4,
+            "OutputBytes");
 
     //
     // Now, do the actual simulation.
+
+
     //
     NS_LOG_INFO("Run Simulation.");
 
-    Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 1);
-    Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw3, 5);
-    Simulator::Schedule(Seconds(3.0), &aimf::RoutingProtocol::AddHostMulticastAssociation, aimf_Gw3, multicastGroup, multicastSource);
-    Simulator::Schedule(Seconds(150.0), &aimf::RoutingProtocol::SleepForwarding, aimf_Gw3, true);
-    Simulator::Schedule(Seconds(200.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw2, 4);
-    Simulator::Schedule(Seconds(230.0), &aimf::RoutingProtocol::AddHostMulticastAssociation, aimf_Gw2, multicastGroup2, multicastSource2);
-    Simulator::Schedule(Seconds(250.0), &aimf::RoutingProtocol::SleepForwarding, aimf_Gw2, true);
-    Simulator::Schedule(Seconds(310.0), &aimf::RoutingProtocol::SleepForwarding, aimf_Gw2, false);
-    Simulator::Schedule(Seconds(370.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 6);
-    Simulator::Schedule(Seconds(450.0), &aimf::RoutingProtocol::SleepForwarding, aimf_Gw3, false);
-    Simulator::Schedule(Seconds(500.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw3, 7);
+    Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 2);
+    Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw2, 3);
+    Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw3, 4);
+    Simulator::Schedule(Seconds(50.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 5);
+    Simulator::Schedule(Seconds(100.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw2, 6);
+    Simulator::Schedule(Seconds(3.0), &aimf::RoutingProtocol::AddHostMulticastAssociation, aimf_Gw, multicastGroup, multicastSource);
+        Simulator::Schedule(Seconds(200.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw2, 3);
+    Simulator::Schedule(Seconds(4.0), &aimf::RoutingProtocol::AddHostMulticastAssociation, aimf_Gw, multicastGroup2, multicastSource2);
+
+    Simulator::Schedule(Seconds(200.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw3, 7);
 
 
 
 
 
 
-    Simulator::Stop(Seconds(1001.0));
+    Simulator::Stop(Seconds(500.0));
     Simulator::Run();
+
+
     Simulator::Destroy();
     NS_LOG_INFO("Done.");
 }

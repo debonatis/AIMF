@@ -75,6 +75,8 @@ namespace ns3 {
         struct Association {
             Ipv4Address group;
             Ipv4Address source;
+             Ipv4Address advertiser;
+             uint8_t will;
         };
 
         static inline bool
@@ -85,8 +87,8 @@ namespace ns3 {
 
         static inline std::ostream&
         operator<<(std::ostream &os, const Association &tuple) {
-            os << "Association(networkAddr=" << tuple.group
-                    << ", netmask=" << tuple.source
+            os << "Association(groupAddr=" << tuple.group
+                    << ", source=" << tuple.source
                     << ")";
             return os;
         }
@@ -101,7 +103,9 @@ namespace ns3 {
             /// Network Address of network reachable through gatewayAddr
             Ipv4Address source;
             /// Time at which this tuple expires and must be removed
-Time expirationTime;
+            Time expirationTime;
+            /// The received TTL of group when SSM
+            uint8_t will;
         };
 
         static inline bool
@@ -128,7 +132,8 @@ Time expirationTime;
         typedef std::map<Ipv4Address,Time> TimerMap;
         typedef std::vector<IfaceAssocTuple> IfaceAssocSet; ///< Interface Association Set type.
         typedef std::vector<AssociationTuple> AssociationSet; ///< Association Set type.
-        typedef std::vector<Association> Associations; ///< Association Set type.
+        typedef std::vector<Association> Associations;
+        typedef std::vector<uint8_t> UniqnessTable;///< Association Set type.
         
 
 

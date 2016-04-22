@@ -5,7 +5,7 @@
 
 #include "aimf-header.h"
 
-#define IPV4_ADDRESS_SIZE 4
+#define IPV4_ADDRESS_SIZE 5
 #define AIMF_MSG_HEADER_SIZE 11
 #define AIMF_PKT_HEADER_SIZE 4
 
@@ -224,6 +224,7 @@ namespace ns3 {
             for (size_t n = 0; n < this->associations.size(); ++n) {
                 i.WriteHtonU32(this->associations[n].group.Get());
                 i.WriteHtonU32(this->associations[n].source.Get());
+                i.WriteU8(this->associations[n].willGroupSSM);
             }
         }
 
@@ -244,9 +245,9 @@ namespace ns3 {
             for (int n = 0; n < numAddresses; ++n) {
                 Ipv4Address group(i.ReadNtohU32());
                 Ipv4Address source(i.ReadNtohU32());
-
+                uint8_t will(i.ReadU8());
                 this->associations.push_back((Association) {
-                    group, source
+                    group, source, will
                 });
             }
 

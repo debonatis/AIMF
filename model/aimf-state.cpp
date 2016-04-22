@@ -7,6 +7,15 @@
 namespace ns3 {
     namespace aimf {
 
+        uint8_t AimfState::FindUnik(uint8_t t) {
+            for (UniqnessTable::iterator it = m_unikTable.begin(); it != m_unikTable.end(); it++) {
+                if (*it == t) {
+                    return *it;
+                }
+            }
+            return 0;
+        }
+
         void
         AimfState::InsertAssociationTuple(const AssociationTuple &tuple) {
             m_associationSet.push_back(tuple);
@@ -65,17 +74,20 @@ namespace ns3 {
             return NULL;
         }
 
-        bool
+        int
         AimfState::WillingnessOk(uint8_t const will) {
             uint8_t k = 0;
 
             for (NeighborSet::const_iterator it = m_neighborSet.begin();
                     it != m_neighborSet.end(); it++) {
 
-                if (it->willingness > k)
+                if (it->willingness >= k)
                     k = it->willingness;
             }
-            return (will >= k);
+            if (will == k) {
+                return 1;
+            }
+            return (will > k) ? 2 : 0;
         }
 
         int
@@ -93,8 +105,8 @@ namespace ns3 {
 
         uint8_t AimfState::WillingnessNextMaxInSystem() {
             uint8_t max, secmax;
-            if(m_neighborSet.size()<2){
-                return ((uint8_t)WillingnessMaxInSystem());
+            if (m_neighborSet.size() < 2) {
+                return ((uint8_t) WillingnessMaxInSystem());
             }
 
             if (m_neighborSet.at(0).willingness > m_neighborSet.at(1).willingness) {
@@ -104,7 +116,7 @@ namespace ns3 {
                 secmax = m_neighborSet.at(0).willingness;
                 max = m_neighborSet.at(1).willingness;
             }
-            if(m_neighborSet.size()<3){
+            if (m_neighborSet.size() < 3) {
                 return (secmax);
             }
 

@@ -25,6 +25,8 @@
 #include "aimf-header.h"
 #include "aimf-state.h"
 #include "aimf-repository.h"
+#include "ns3/olsr-routing-protocol.h"
+#include "ns3/ipv4-list-routing.h"
 
 #include <vector>
 #include <map>
@@ -58,7 +60,7 @@ namespace ns3 {
             //             **/
             std::vector<Ipv4MulticastRoutingTableEntry> GetRoutingTableEntries() const;
             //
-            //            /**
+            //            /*
             //             * Assign a fixed random variable stream number to the random variables
             //             * used by this model.  Return the number of streams (possibly zero) that
             //             * have been assigned.
@@ -82,26 +84,28 @@ namespace ns3 {
             std::set<uint32_t> m_interfaceExclusions;
             std::set<uint32_t> m_netdevice;
             Ptr<Ipv4StaticRouting> m_routingTableAssociation;
-            volatile bool isSleep;
+            std::vector<olsr::RoutingTableEntry> olsrTable;
+            bool isFirstNonSpott;
+            volatile bool forward;
 
             //
         public:
-            void
-            PartitionTimerExpire(Ipv4Address group, bool spotted);
-            void RecvGroups(Ptr<Socket> socket);
+
+
 
             // Willingness for forwarding packets on behalf of other nodes.
             volatile uint8_t m_willingness;
 
-            std::set<uint32_t> GetInterfaceExclusions() const {
-                return m_interfaceExclusions;
-            }
+
+
             void AddNeigbour(NeighborTuple tuple);
             void RemoveNeighborset(Ipv4Address adress);
             void SetInterfaceExclusions(std::set<uint32_t> exceptions);
             void SetNetdevicelistener(std::set<uint32_t> listen);
 
             void AddHostMulticastAssociation(Ipv4Address group, Ipv4Address source);
+            void
+            RemoveHostMulticastAssociation(Ipv4Address group, Ipv4Address source);
 
 
 
@@ -109,15 +113,15 @@ namespace ns3 {
             void SleepForwarding(bool sleep);
             void ChangeWillingness(uint8_t will);
 
-            Ptr<const Ipv4StaticRouting> GetRoutingTableAssociation() const;
+
 
         protected:
             virtual void DoInitialize(void);
         private:
             std::map<Ipv4Address, Ipv4MulticastRoutingTableEntry> m_table; ///< Data structure for the routing table.
 
-            volatile bool isFirstSpoot;
-            volatile uint8_t m_lastWillingness;
+            Ptr<olsr::RoutingProtocol> m_olsr_onNode;
+
             EventGarbageCollector m_events;
 
             // Packets sequence number counter.
@@ -129,16 +133,20 @@ namespace ns3 {
 
             // HELLO messages' emission interval.
             Time m_helloInterval;
+            Time m_olsrCheckInterval;
 
 
             // Internal state with all needed data structs.
             AimfState m_state;
             //
             Ptr<Ipv4> m_ipv4;
+            void ReceivingMulticast(Ipv4Address group);
 
-            EventId timerForPartition;
 
-            //
+
+
+            
+            
             void Clear();
             //
 
@@ -154,6 +162,7 @@ namespace ns3 {
             virtual void DoDispose(void);
 
         private:
+            
             /// Container for the network routes
             typedef std::list<std::pair <Ipv4RoutingTableEntry *, uint32_t> > NetworkRoutes;
 
@@ -179,7 +188,7 @@ namespace ns3 {
              * \return Ipv4MulticastRoute to route the packet to reach dest address
              */
             Ptr<Ipv4MulticastRoute> LookupStatic(Ipv4Address origin, Ipv4Address group,
-                    uint32_t interface);
+                    uint32_t interface, uint8_t will);
 
             /**
              * \brief Choose the source address to use with destination address.
@@ -188,6 +197,8 @@ namespace ns3 {
              * \return IPv4 source address to use
              */
             Ipv4Address SourceAddressSelection(uint32_t interface, Ipv4Address dest);
+
+
         public:
             /**
              * \brief the forwarding table for network.
@@ -196,8 +207,7 @@ namespace ns3 {
 
 
 
-            bool FindSendEntry(const Ipv4MulticastRoutingTableEntry &entry,
-                    Ipv4MulticastRoutingTableEntry & outEntry) const;
+
             // From Ipv4RoutingProtocol
             virtual Ptr<Ipv4Route> RouteOutput(Ptr<Packet> p,
                     const Ipv4Header &header,
@@ -234,7 +244,10 @@ namespace ns3 {
 
 
             Timer m_helloTimer;
+            Timer m_olsrCheck;
             void HelloTimerExpire();
+            void OlsrTimerExpire();
+            
 
 
 
@@ -270,15 +283,15 @@ namespace ns3 {
 
             std::map< Ptr<Socket>, Ipv4InterfaceAddress > m_socketAddresses;
 
-            TracedCallback <const PacketHeader &,
-            const MessageList &> m_rxPacketTrace;
-            TracedCallback <const PacketHeader &,
-            const MessageList &> m_txPacketTrace;
+            TracedCallback<Ptr<const Packet>, Ptr<Ipv4>, uint32_t> m_rxHelloPacketTrace;
+            TracedCallback<Ptr<const Packet>, Ptr<Ipv4>, uint32_t> m_rxMcastPacketTrace;
+            TracedCallback<Ptr<const Packet>, Ptr<Ipv4>, uint32_t> m_txMcastPacketTrace;
+            TracedCallback<Ptr<const Packet>, Ptr<Ipv4>, uint32_t> m_txHelloPacketTrace;
 
             TracedCallback <uint32_t> m_routingTableChanged;
 
             /// Provides uniform random variables.
-            Ptr<UniformRandomVariable> m_uniformRandomVariable;
+
             Ptr<UniformRandomVariable> m_uniformRandomVariable2;
 
         };
