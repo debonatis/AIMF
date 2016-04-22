@@ -41,7 +41,7 @@ simulation script writer can call one of three overloaded functions
 with different scope to enable AIMF: ``ns3::AimfHelper::Install
 (NodeContainer container)``; ``ns3::OlsrHelper::AimfHelper (Ptr<Node>
 node)``; or ``ns3::AimfHelper::InstallAll (void)``
-It is mandatory that you exclude wireless the interface/s with ``ns3::AimfHelper::ExcludeInterface(Ptr<Node> node, uint32_t interface)`` and set the outgoing one/s with ``ns3::AimfHelper::SetListenNetDevice(Ptr<Node> node, uint32_t interface)``. 
+It is mandatory that you exclude the wireless interface/s with ``ns3::AimfHelper::ExcludeInterface(Ptr<Node> node, uint32_t interface)`` and set the outgoing one/s with ``ns3::AimfHelper::SetListenNetDevice(Ptr<Node> node, uint32_t interface)``. 
 
 Attributes
 ==========
@@ -60,26 +60,22 @@ Advanced Usage
 
 To be able to inject routes and (S,G) pair/s (Simulating IGMP) you have to make yourselves a reference to the running aimf instance of choice.
 
-  ``  Ptr<Ipv4> stack = c.Get(3)->GetObject<Ipv4> ();`` 
-    `` Ptr<Ipv4RoutingProtocol> rp_Gw = (stack->GetRoutingProtocol());`` 
-   ``  Ptr<Ipv4ListRouting> lrp_Gw = DynamicCast<Ipv4ListRouting> (rp_Gw);`` 
-
+  ``  Ptr<Ipv4> stack = c.Get(3)->GetObject<Ipv4> ();
+     Ptr<Ipv4RoutingProtocol> rp_Gw = (stack->GetRoutingProtocol());
+    Ptr<Ipv4ListRouting> lrp_Gw = DynamicCast<Ipv4ListRouting> (rp_Gw); 
     
-
-
-   ``  Ptr<aimf::RoutingProtocol> aimf_Gw;`` 
+     Ptr<aimf::RoutingProtocol> aimf_Gw; 
    
 
-
-  ``   for (uint32_t i = 0; i < lrp_Gw->GetNRoutingProtocols(); i++) {`` 
-     ``    int16_t priority;`` 
-    ``     Ptr<Ipv4RoutingProtocol> temp = lrp_Gw->GetRoutingProtocol(i, priority);`` 
- ``        if (DynamicCast<aimf::RoutingProtocol> (temp)) {`` 
-    ``         aimf_Gw = DynamicCast<aimf::RoutingProtocol>(temp);`` `` 
+     for (uint32_t i = 0; i < lrp_Gw->GetNRoutingProtocols(); i++) {
+         int16_t priority; 
+         Ptr<Ipv4RoutingProtocol> temp = lrp_Gw->GetRoutingProtocol(i, priority); 
+        if (DynamicCast<aimf::RoutingProtocol> (temp)) {
+             aimf_Gw = DynamicCast<aimf::RoutingProtocol>(temp);` 
         }
 
-    }
-``
+    }``
+
 
 Changing the willingness and injecting a (S,G) pair.
 
