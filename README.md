@@ -60,22 +60,22 @@ Advanced Usage
 
 To be able to inject routes and (S,G) pair/s (Simulating IGMP) you have to make yourselves a reference to the running aimf instance of choice.
 
-  ``  Ptr<Ipv4> stack = c.Get(3)->GetObject<Ipv4> ();
-    Ptr<Ipv4RoutingProtocol> rp_Gw = (stack->GetRoutingProtocol());
-    Ptr<Ipv4ListRouting> lrp_Gw = DynamicCast<Ipv4ListRouting> (rp_Gw);
+  ``  Ptr<Ipv4> stack = c.Get(3)->GetObject<Ipv4> ();`` 
+    `` Ptr<Ipv4RoutingProtocol> rp_Gw = (stack->GetRoutingProtocol());`` 
+   ``  Ptr<Ipv4ListRouting> lrp_Gw = DynamicCast<Ipv4ListRouting> (rp_Gw);`` 
 
     
 
 
-    Ptr<aimf::RoutingProtocol> aimf_Gw;
+   ``  Ptr<aimf::RoutingProtocol> aimf_Gw;`` 
    
 
 
-    for (uint32_t i = 0; i < lrp_Gw->GetNRoutingProtocols(); i++) {
-        int16_t priority;
-        Ptr<Ipv4RoutingProtocol> temp = lrp_Gw->GetRoutingProtocol(i, priority);
-        if (DynamicCast<aimf::RoutingProtocol> (temp)) {
-            aimf_Gw = DynamicCast<aimf::RoutingProtocol>(temp);
+  ``   for (uint32_t i = 0; i < lrp_Gw->GetNRoutingProtocols(); i++) {`` 
+     ``    int16_t priority;`` 
+    ``     Ptr<Ipv4RoutingProtocol> temp = lrp_Gw->GetRoutingProtocol(i, priority);`` 
+ ``        if (DynamicCast<aimf::RoutingProtocol> (temp)) {`` 
+    ``         aimf_Gw = DynamicCast<aimf::RoutingProtocol>(temp);`` `` 
         }
 
     }
@@ -83,9 +83,9 @@ To be able to inject routes and (S,G) pair/s (Simulating IGMP) you have to make 
 
 Changing the willingness and injecting a (S,G) pair.
 
-``Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 2);
+``Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 2);`` 
     
-Simulator::Schedule(Seconds(3.0), &aimf::RoutingProtocol::AddHostMulticastAssociation, aimf_Gw, multicastGroup, multicastSource);``
+`` Simulator::Schedule(Seconds(3.0), &aimf::RoutingProtocol::AddHostMulticastAssociation, aimf_Gw, multicastGroup, multicastSource);``
     
 Troubleshooting
 ===============
