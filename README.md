@@ -41,7 +41,7 @@ simulation script writer can call one of three overloaded functions
 with different scope to enable AIMF: ``ns3::AimfHelper::Install
 (NodeContainer container)``; ``ns3::AimfHelper::AimfHelper (Ptr<Node>
 node)``; or ``ns3::AimfHelper::InstallAll (void)``
-It is mandatory that you exclude the wireless interface/s with ``ns3::AimfHelper::ExcludeInterface(Ptr<Node> node, uint32_t interface)`` and set the outgoing one/s with ``ns3::AimfHelper::SetListenNetDevice(Ptr<Node> node, uint32_t interface)``. 
+It is mandatory that you exclude the wireless interface/s with ``ns3::AimfHelper::ExcludeInterface(Ptr<Node> node, uint32_t interface)`` and set the outgoing one/s with ``ns3::AimfHelper::SetMANETNetDeviceID(Ptr<Node> node, uint32_t interface)``. 
 
 Attributes
 ==========
