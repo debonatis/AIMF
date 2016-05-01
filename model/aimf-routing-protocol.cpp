@@ -61,15 +61,15 @@
 
 /********** Willingness **********/
 
-/// Willingness for forwarding packets from other nodes: never.
+/// Willingness for forwarding packets: never.
 #define AIMF_WILL_NEVER         0
-/// Willingness for forwarding packets from other nodes: low.
+/// Willingness for forwarding packets: low.
 #define AIMF_WILL_LOW           1
-/// Willingness for forwarding packets from other nodes: medium.
+/// Willingness for forwarding packets: medium.
 #define AIMF_WILL_DEFAULT       3
-/// Willingness for forwarding packets from other nodes: high.
+/// Willingness for forwarding packets: high.
 #define AIMF_WILL_HIGH          6
-/// Willingness for forwarding packets from other nodes: always.
+/// Willingness for forwarding packets: always.
 #define AIMF_WILL_ALWAYS        7
 
 #define AIMF_MCAST_ADR "230.0.0.30"
@@ -78,9 +78,6 @@
 
 /// Maximum allowed sequence number.
 #define AIMF_MAX_SEQ_NUM        65535
-
-
-
 
 #define AIMF_PORT_NUMBER 1337
 
@@ -526,6 +523,10 @@ namespace ns3 {
             m_olsrCheck.Cancel();
             forward = false;
             m_willingness = 1;
+        }
+
+        void RoutingProtocol::DoStart() {
+            DoInitialize();
         }
 
         Ptr<Ipv4Route>
@@ -1077,32 +1078,53 @@ namespace ns3 {
         }
 
         void RoutingProtocol::OlsrTimerExpire() {
-
-
+            double t = 0;
             uint8_t j = 0;
             std::vector<olsr::RoutingTableEntry> v = m_olsr_onNode->GetRoutingTableEntries();
+            switch (m_willingness) {
+                case AIMF_WILL_ALWAYS:
+                    forward = true;
+                    break;
+                case 1:
+                    t++;
+                case 2:
+                    t++;
+                case AIMF_WILL_DEFAULT:
+                    t++;
+                case 4:
+                    t++;
+                case 5:
+                    t++;
+                case AIMF_WILL_HIGH:
+                    m_olsrCheck.Schedule(m_olsrCheckInterval + Time(Seconds(t)));
 
 
-            for (std::vector<NeighborTuple>::iterator neig = m_state.GetNeighbors().begin(); neig != m_state.GetNeighbors().end(); neig++) {
-                for (std::vector<olsr::RoutingTableEntry>::iterator route = v.begin(); route != v.end(); route++) {
-                    if (route->destAddr == neig->neighborMainAddr) {
-                        if (neig->willingness >= j) {
-                            j = neig->willingness;
+
+                    for (std::vector<NeighborTuple>::iterator neig = m_state.GetNeighbors().begin(); neig != m_state.GetNeighbors().end(); neig++) {
+                        for (std::vector<olsr::RoutingTableEntry>::iterator route = v.begin(); route != v.end(); route++) {
+                            if (route->destAddr == neig->neighborMainAddr) {
+                                if (neig->willingness >= j) {
+                                    j = neig->willingness;
+                                }
+
+                            }
                         }
-
                     }
-                }
+                    if (j <= m_willingness) {
+                        forward = true; //ALERT PIM
+                    } else {
+                        forward = false; //ALERT PIM
+                    }
+                    break;
+                case AIMF_WILL_NEVER:
+                    forward = false;
+                    break;
+
             }
 
 
-            if (j <= m_willingness) {
-                forward = true; //ALERT PIM
-            } else {
-                forward = false; //ALERT PIM
-            }
 
 
-            m_olsrCheck.Schedule(m_olsrCheckInterval);
         }
 
 
