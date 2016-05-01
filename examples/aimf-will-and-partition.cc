@@ -182,9 +182,9 @@ main(int argc, char *argv[]) {
         aimf.ExcludeInterface(c.Get(3), 2);
         aimf.ExcludeInterface(c.Get(4), 2);
         aimf.ExcludeInterface(c.Get(5), 2);
-        aimf.SetListenNetDevice(c.Get(3), 2);
-        aimf.SetListenNetDevice(c.Get(4), 2);
-        aimf.SetListenNetDevice(c.Get(5), 2);
+        aimf.SetMANETNetDeviceID(c.Get(3), 2);
+        aimf.SetMANETNetDeviceID(c.Get(4), 2);
+        aimf.SetMANETNetDeviceID(c.Get(5), 2);
 
         list.Add(staticRouting, 10);
         list.Add(aimf, 12);

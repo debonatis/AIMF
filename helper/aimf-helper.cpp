@@ -37,7 +37,7 @@ namespace ns3 {
         }
     }
 
-    void AimfHelper::SetListenNetDevice(Ptr<Node> node, uint32_t interface) {
+    void AimfHelper::SetMANETNetDeviceID(Ptr<Node> node, uint32_t interface) {
         std::map<Ptr<Node>, std::set<uint32_t>  >::iterator it = m_netdevices.find(node);
 
         if (it == m_netdevices.end()) {

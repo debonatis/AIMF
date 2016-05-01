@@ -42,7 +42,7 @@ namespace ns3 {
          */
         void ExcludeInterface(Ptr<Node> node, uint32_t interface);
 
-        void SetListenNetDevice(Ptr<Node> node, uint32_t interface);
+        void SetMANETNetDeviceID(Ptr<Node> node, uint32_t interface);
 
         /**
          * \param node the node on which the routing protocol will run

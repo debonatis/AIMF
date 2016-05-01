@@ -112,6 +112,7 @@ namespace ns3 {
 
             void SleepForwarding(bool sleep);
             void ChangeWillingness(uint8_t will);
+            void DoStop();
 
 
 

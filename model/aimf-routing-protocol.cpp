@@ -148,7 +148,7 @@ namespace ns3 {
         RoutingProtocol::~RoutingProtocol() {
         };
 
-
+        ///< Data structure for the multicast routing table.
         std::map<ns3::Ipv4Address, Ipv4MulticastRoutingTableEntry> m_table;
         ///< Data structure for the routing table.
 
@@ -165,6 +165,7 @@ namespace ns3 {
 
         /// HELLO messages' emission interval.
         Time m_helloInterval;
+        /// OLSR check interval.
         Time m_olsrCheckInterval;
 
         volatile uint8_t m_willingness;
@@ -413,17 +414,17 @@ namespace ns3 {
                                 mrtentry->SetOutputTtl(route.GetOutputInterface(j), Ipv4MulticastRoute::MAX_TTL - 1);
                             }
                         }
-                        
+
                         return mrtentry;
-                    } 
-//                    else{
-//                        mrtentry = Create<Ipv4MulticastRoute> ();
-//                        mrtentry->SetGroup(route.GetGroup());
-//                        mrtentry->SetOrigin(route.GetOrigin());
-//                        mrtentry->SetParent(2);
-//                        mrtentry->SetOutputTtl(2, Ipv4MulticastRoute::MAX_TTL - 1);
-//                        
-//                    }
+                    }
+                    //                    else{
+                    //                        mrtentry = Create<Ipv4MulticastRoute> ();
+                    //                        mrtentry->SetGroup(route.GetGroup());
+                    //                        mrtentry->SetOrigin(route.GetOrigin());
+                    //                        mrtentry->SetParent(2);
+                    //                        mrtentry->SetOutputTtl(2, Ipv4MulticastRoute::MAX_TTL - 1);
+                    //                        
+                    //                    }
                     ///ALERT PIM there is a "new" multicast group spotted on the MANET                    
 
 
@@ -501,8 +502,30 @@ namespace ns3 {
             }
             m_socketAddresses.clear();
 
-            // Ipv4RoutingProtocol::DoDispose();
+            m_helloTimer.Cancel();
+            m_olsrCheck.Cancel();
+            forward = false;
+            m_willingness = 1;
 
+        }
+
+        void RoutingProtocol::DoStop() {
+
+
+
+            m_table.clear();
+            m_state.ClearTimer();
+            for (std::map< Ptr<Socket>, Ipv4InterfaceAddress >::iterator iter = m_socketAddresses.begin();
+                    iter != m_socketAddresses.end(); iter++) {
+                iter->first->Close();
+            }
+
+            m_socketAddresses.clear();
+
+            m_helloTimer.Cancel();
+            m_olsrCheck.Cancel();
+            forward = false;
+            m_willingness = 1;
         }
 
         Ptr<Ipv4Route>
@@ -532,10 +555,10 @@ namespace ns3 {
             // Check if input device supports IP 
             NS_ASSERT(m_ipv4->GetInterfaceForDevice(idev) >= 0);
             if (header.GetDestination().IsMulticast()) {
-//                if (m_netdevice.find(m_ipv4->GetInterfaceForDevice(idev)) != m_netdevice.end()) {
-//                    m_state.FindUnik(header.GetTos());
-//                    return false;
-//                }
+                //                if (m_netdevice.find(m_ipv4->GetInterfaceForDevice(idev)) != m_netdevice.end()) {
+                //                    m_state.FindUnik(header.GetTos());
+                //                    return false;
+                //                }
                 NS_LOG_LOGIC("Multicast destination");
                 Ptr<Ipv4MulticastRoute> mrtentry = LookupStatic(header.GetSource(),
                         header.GetDestination(), m_ipv4->GetInterfaceForDevice(idev), header.GetTtl());
@@ -547,18 +570,18 @@ namespace ns3 {
                     if (!forward) {
                         return false;
                     }
-//                    if(mrtentry->GetParent() !=2){
-//                    int k = m_uniformRandomVariable2->GetInteger(0, 255);
-//                    m_state.GetUnikTable().push_back((uint8_t) k);
-//                    if (m_state.GetUnikTable().size() > 1500) {
-//                        delete &m_state.GetUnikTable()[0];
-//                    }
-//                    Ipv4Header head;
-//                    
-//                    p->PeekHeader(head);
-//                    head.SetTos((uint8_t) k);
-//                    head.
-//                    }
+                    //                    if(mrtentry->GetParent() !=2){
+                    //                    int k = m_uniformRandomVariable2->GetInteger(0, 255);
+                    //                    m_state.GetUnikTable().push_back((uint8_t) k);
+                    //                    if (m_state.GetUnikTable().size() > 1500) {
+                    //                        delete &m_state.GetUnikTable()[0];
+                    //                    }
+                    //                    Ipv4Header head;
+                    //                    
+                    //                    p->PeekHeader(head);
+                    //                    head.SetTos((uint8_t) k);
+                    //                    head.
+                    //                    }
                     mcb(mrtentry, p, header);
 
                     m_txMcastPacketTrace(p->Copy(), m_ipv4, idev->GetIfIndex());
