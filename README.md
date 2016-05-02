@@ -58,7 +58,7 @@ There are tracers. See in "aimf-routing-protocol.cpp.
 Advanced Usage
 ==============
 
-To be able to inject routes and (S,G) pair/s (Simulating IGMP) you have to make yourselves a reference to the running aimf instance of choice.
+To be able to inject (S,G) pair/s (Simulating IGMP) and alter the willingness of each subsystem you have to make yourselves a reference to the running aimf instance of choice.
 
      Ptr<Ipv4> stack = c.Get(3)->GetObject<Ipv4> ();
      Ptr<Ipv4RoutingProtocol> rp_Gw = (stack->GetRoutingProtocol());
