@@ -83,7 +83,7 @@ Changing the willingness and injecting a (S,G) pair.
 Troubleshooting
 ===============
 
-Be careful with the HelloInterval and the olsrPollInterval to avoid hysteria and get the interface selection right.
+Be careful with the HelloInterval and the olsrPollInterval to avoid hysteresis and get the interface selection right.
 
 
 
