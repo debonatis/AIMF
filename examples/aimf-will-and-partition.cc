@@ -39,21 +39,19 @@
 #include "ns3/applications-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/aimf-helper.h"
+#include "ns3/smf-helper.h"
 #include "ns3/aimf-routing-protocol.h"
 #include "ns3/olsr-helper.h"
 #include "ns3/olsr-routing-protocol.h"
 #include "ns3/mobility-module.h"
 #include "ns3/stats-module.h"
 #include "ns3/netanim-module.h"
+#include "ns3/udp-client-server-helper.h"
 
 
 using namespace ns3;
 
 NS_LOG_COMPONENT_DEFINE("AimfMulticast");
-
-void RoutingTableChangeAIMF() {
-
-}
 
 int
 main(int argc, char *argv[]) {
@@ -107,7 +105,7 @@ main(int argc, char *argv[]) {
     }
     wifi.SetStandard(WIFI_PHY_STANDARD_80211b);
     std::string phyMode("OfdmRate54Mbps");
-    
+
     YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default();
     // This is one parameter that matters when using FixedRssLossModel
     // set it to zero; otherwise, gain will be added
@@ -117,10 +115,9 @@ main(int argc, char *argv[]) {
 
     YansWifiChannelHelper wifiChannel;
     wifiChannel.SetPropagationDelay("ns3::ConstantSpeedPropagationDelayModel");
-    // The below FixedRssLossModel will cause the rss to be fixed regardless
-    // of the distance between the two stations, and the transmit power
+
     double maxRange = 150;
-    wifiChannel.AddPropagationLoss("ns3::RangePropagationLossModel","MaxRange",DoubleValue(maxRange));
+    wifiChannel.AddPropagationLoss("ns3::RangePropagationLossModel", "MaxRange", DoubleValue(maxRange));
     wifiPhy.SetChannel(wifiChannel.Create());
 
     // Add a non-QoS upper mac, and disable rate control
@@ -142,43 +139,114 @@ main(int argc, char *argv[]) {
 
     if (wifiok) {
         nd1 = wifi.Install(wifiPhy, wifiMac, c1); // WLAN
+//        int64_t streamIndex = 2357;
+
+
         MobilityHelper mobility;
         mobility.SetPositionAllocator("ns3::RandomDiscPositionAllocator",
-                "X", StringValue("95.0"),
+                "X", StringValue("160.0"),
                 "Y", StringValue("50.0"),
                 "Rho", StringValue("ns3::UniformRandomVariable[Min=0|Max=41]"));
         mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel",
                 "Mode", StringValue("Time"),
                 "Time", StringValue("0.5s"),
                 "Speed", StringValue("ns3::UniformRandomVariable[Min=10|Max=100]"),
-                "Bounds", StringValue("0|190|8|150"));
-        mobility.Install(NodeContainer(c.Get(6), c.Get(7)));
+                "Bounds", StringValue("130|190|8|100"));
+        mobility.Install(c.Get(7));
+        MobilityHelper mobility3;
+        mobility3.SetPositionAllocator("ns3::RandomDiscPositionAllocator",
+                "X", StringValue("150.0"),
+                "Y", StringValue("50.0"),
+                "Rho", StringValue("ns3::UniformRandomVariable[Min=0|Max=41]"));
+        mobility3.SetMobilityModel("ns3::RandomWalk2dMobilityModel",
+                "Mode", StringValue("Time"),
+                "Time", StringValue("0.5s"),
+                "Speed", StringValue("ns3::UniformRandomVariable[Min=10|Max=100]"),
+                "Bounds", StringValue("130|190|8|100"));
+        mobility3.Install(c.Get(6));
+
+
+        //        MobilityHelper mobility;
+        //        mobility.SetPositionAllocator("ns3::RandomDiscPositionAllocator",
+        //                "X", StringValue("400.0"),
+        //                "Y", StringValue("25.0"),
+        //                "Rho", StringValue("ns3::UniformRandomVariable[Min=0|Max=5]"));
+        //        mobility.SetMobilityModel("ns3::RandomWalk2dMobilityModel",
+        //                "Mode", StringValue("Time"),
+        //                "Time", StringValue("0.5s"),
+        //                "Speed", StringValue("ns3::UniformRandomVariable[Min=10|Max=100]"),
+        //                "Bounds", StringValue("200|800|8|100"));
+        //        mobility.Install(c.Get(7));
+        //        MobilityHelper mobility3;
+        //        mobility3.SetPositionAllocator("ns3::RandomDiscPositionAllocator",
+        //                "X", StringValue("360.0"),
+        //                "Y", StringValue("77.0"),
+        //                "Rho", StringValue("ns3::UniformRandomVariable[Min=0|Max=2]"));
+        //        mobility3.SetMobilityModel("ns3::RandomWalk2dMobilityModel",
+        ////                "Mode", StringValue("Distance"),
+        ////                "Distance", StringValue("200"),
+        ////                "Direction", StringValue("ns3::UniformRandomVariable[Min=0|Max=0]"),
+        ////                "Speed", StringValue("ns3::UniformRandomVariable[Min=1|Max=2]"),
+        //                "Mode", StringValue("Time"),
+        //                "Time", StringValue("0.5s"),
+        //                "Speed", StringValue("ns3::UniformRandomVariable[Min=10|Max=100]"),
+        //                "Bounds", StringValue("200|800|8|100"));
+        //        mobility3.Install(c.Get(6));
         MobilityHelper mobility2;
         Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
-        positionAlloc->Add(Vector(140.0, 8.0, 0.0));//gw1
-        positionAlloc->Add(Vector(160.0, 8.0, 0.0));//gw2
-        positionAlloc->Add(Vector(180.0, 8.0, 0.0));//gw3
+        //        positionAlloc->Add(Vector(300.0, 8.0, 0.0)); //gw1
+        //        positionAlloc->Add(Vector(500.0, 8.0, 0.0)); //gw2
+        //        positionAlloc->Add(Vector(700.0, 8.0, 0.0)); //gw3
+        //        positionAlloc->Add(Vector(170.0, 2.0, 0.0));
+        //        positionAlloc->Add(Vector(145.0, 3.0, 0.0));
+        //        positionAlloc->Add(Vector(155.0, 3.0, 0.0));
+        //        positionAlloc->Add(Vector(170.0, 2.0, 0.0));
+        //        positionAlloc->Add(Vector(190.0, 2.0, 0.0));
+
+        positionAlloc->Add(Vector(140.0, 8.0, 0.0)); //gw1
+        positionAlloc->Add(Vector(160.0, 8.0, 0.0)); //gw2
+        positionAlloc->Add(Vector(180.0, 8.0, 0.0)); //gw3
         positionAlloc->Add(Vector(170.0, 2.0, 0.0));
         positionAlloc->Add(Vector(145.0, 3.0, 0.0));
         positionAlloc->Add(Vector(155.0, 3.0, 0.0));
         positionAlloc->Add(Vector(170.0, 2.0, 0.0));
         positionAlloc->Add(Vector(190.0, 2.0, 0.0));
 
+
         mobility2.SetPositionAllocator(positionAlloc);
         mobility2.SetMobilityModel("ns3::ConstantPositionMobilityModel");
         NodeContainer w = NodeContainer(c.Get(3), c.Get(4), c.Get(5));
-        NodeContainer k= NodeContainer(c.Get(0), c.Get(1), c.Get(2), c.Get(8), c.Get(9));
+        NodeContainer k = NodeContainer(c.Get(0), c.Get(1), c.Get(2), c.Get(8), c.Get(9));
         w.Add(k);
         mobility2.Install(w);
-       
-        
-       
+        NS_LOG_INFO("Add randomness to the mobility. Wireless chosen!");
+
+        //        mobility.AssignStreams(NodeContainer(c.Get(6), c.Get(7)), streamIndex);
+
+
         NS_LOG_INFO("Add IP Stack. Wireless chosen!");
         OlsrHelper olsr;
         OlsrHelper olsr2;
+        smfHelper smf;
+        smfHelper smf2;
+        smf.SetnonMANETNetDeviceID(c.Get(3), 0);
+        smf.SetnonMANETNetDeviceID(c.Get(3), 1);
+        smf.SetnonMANETNetDeviceID(c.Get(4), 0);
+        smf.SetnonMANETNetDeviceID(c.Get(4), 1);
+        smf.SetnonMANETNetDeviceID(c.Get(5), 0);
+        smf.SetnonMANETNetDeviceID(c.Get(5), 1);
+        smf.SetMANETNetDeviceID(c.Get(3), 2);
+        smf.SetMANETNetDeviceID(c.Get(4), 2);
+        smf.SetMANETNetDeviceID(c.Get(5), 2);
+        smf2.SetMANETNetDeviceID(c.Get(6), 1);
+        smf2.SetMANETNetDeviceID(c.Get(7), 1);
+
         olsr.ExcludeInterface(c.Get(3), 1);
         olsr.ExcludeInterface(c.Get(4), 1);
         olsr.ExcludeInterface(c.Get(5), 1);
+        olsr.ExcludeInterface(c.Get(3), 0);
+        olsr.ExcludeInterface(c.Get(4), 0);
+        olsr.ExcludeInterface(c.Get(5), 0);
         aimf.ExcludeInterface(c.Get(3), 2);
         aimf.ExcludeInterface(c.Get(4), 2);
         aimf.ExcludeInterface(c.Get(5), 2);
@@ -189,8 +257,10 @@ main(int argc, char *argv[]) {
         list.Add(staticRouting, 10);
         list.Add(aimf, 12);
         list.Add(olsr, 11);
+        //        list.Add(smf, 13);
         list2.Add(staticRouting2, 0);
         list2.Add(olsr2, 9);
+        //        list2.Add(smf2, 10);
 
 
         internet.Install(NodeContainer(c.Get(0), c.Get(1), c.Get(2), c.Get(8), c.Get(9)));
@@ -289,8 +359,7 @@ main(int argc, char *argv[]) {
     Ipv4Address multicastGroup("225.1.2.4");
     Ipv4Address multicastSource2("10.1.1.2");
     Ipv4Address multicastGroup2("225.1.2.5");
-    //    aimf_Gw->AddHostNetworkAssociation(multicastGroup, multicastSource);
-    //    aimf_Gw->AddHostNetworkAssociation(multicastGroup2, multicastSource2);
+
 
 
 
@@ -335,13 +404,22 @@ main(int argc, char *argv[]) {
     srcC2.Start(Seconds(1.));
     srcC2.Stop(Seconds(499.));
 
+    //    UdpClientHelper cl(multicastGroup, multicastPort);
+    //    cl.SetAttribute("MaxPackets", UintegerValue(10000));
+    //    cl.SetAttribute("PacketSize", UintegerValue(1300));
+    //    UdpClientHelper cl2(multicastGroup2, 1336);
+    //    cl2.SetAttribute("MaxPackets", UintegerValue(10000));
+    //    cl2.SetAttribute("PacketSize", UintegerValue(1400));
+    //
+    //    ApplicationContainer srcC = cl.Install(c0.Get(1));
+    //    ApplicationContainer srcC2 = cl2.Install(c0.Get(1));
 
-    PacketSinkHelper sink("ns3::UdpSocketFactory",
-            InetSocketAddress(Ipv4Address::GetAny(), multicastPort));
-    ApplicationContainer sinkC = sink.Install(c1.Get(3));
-    sinkC.Start(Seconds(1.0));
-    sinkC.Stop(Seconds(100.0));
 
+
+    //    srcC.Start(Seconds(1.));
+    //    srcC.Stop(Seconds(1999.));
+    //    srcC2.Start(Seconds(1.));
+    //    srcC2.Stop(Seconds(1999.));
     NS_LOG_INFO("Configure Tracing.");
     //
     // Configure tracing of all enqueue, dequeue, and NetDevice receive events.
@@ -461,16 +539,22 @@ main(int argc, char *argv[]) {
     //
     NS_LOG_INFO("Run Simulation.");
 
-    Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 2);
-    Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw2, 3);
-    Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw3, 4);
-    Simulator::Schedule(Seconds(50.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 5);
-    Simulator::Schedule(Seconds(100.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw2, 6);
+    Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 3);
+    Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw2, 4);
+    Simulator::Schedule(Seconds(1.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw3, 2);
     Simulator::Schedule(Seconds(3.0), &aimf::RoutingProtocol::AddHostMulticastAssociation, aimf_Gw, multicastGroup, multicastSource);
-        Simulator::Schedule(Seconds(200.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw2, 3);
     Simulator::Schedule(Seconds(4.0), &aimf::RoutingProtocol::AddHostMulticastAssociation, aimf_Gw, multicastGroup2, multicastSource2);
+    Simulator::Schedule(Seconds(250.0), &aimf::RoutingProtocol::DoStop, aimf_Gw2);
+    Simulator::Schedule(Seconds(350.0), &aimf::RoutingProtocol::DoStart, aimf_Gw2);
+    //    Simulator::Schedule(Seconds(50.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw, 5);
 
-    Simulator::Schedule(Seconds(200.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw3, 7);
+    //    Simulator::Schedule(Seconds(100.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw2, 6);
+
+    //    Simulator::Schedule(Seconds(200.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw2, 3);
+    // Simulator::Schedule(Seconds(250.0), &aimf::RoutingProtocol::DoStop, aimf_Gw2);
+    //    
+    //
+    //    Simulator::Schedule(Seconds(200.0), &aimf::RoutingProtocol::ChangeWillingness, aimf_Gw3, 7);
 
 
 
