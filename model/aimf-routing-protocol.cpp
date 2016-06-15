@@ -522,7 +522,6 @@ namespace ns3 {
             m_helloTimer.Cancel();
             m_olsrCheck.Cancel();
             forward = false;
-            m_willingness = 1;
         }
 
         void RoutingProtocol::DoStart() {
