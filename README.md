@@ -1,5 +1,5 @@
 # AIMF
-Multicast routing for edge MANET routers.
+Multicast routing for GW-MANET routers.
 
 
 Model Description
